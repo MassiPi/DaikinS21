@@ -1,0 +1,106 @@
+#daikin AC over mqtt
+mqtt
+  climate:
+    - name: "Living AC"
+      icon: mdi:air-conditioner
+      mode_state_topic: "your/data/topic"
+      modes: ["auto", "off", "dry", "cool", "heat", "fan_only"]
+      mode_state_template: >-
+        {% if value_json.power == false %}
+            off
+        {% elif value_json.mode == 49 or value_json.mode == 48 %}
+            auto
+        {% elif value_json.mode == 50 %}
+            dry
+        {% elif value_json.mode == 51 %}
+            cool
+        {% elif value_json.mode == 52 %}
+            heat
+        {% elif value_json.mode == 54 %}
+            fan_only
+        {% endif %}
+      mode_command_topic: "your/command/topic"
+      mode_command_template: >-
+        {% if value == "auto" %}
+            {"command":"acHaMode","mode":49}{{'\0'}}
+        {% elif value == "off" %}
+            {"command":"acHaMode","mode":0}{{'\0'}}
+        {% elif value == "dry" %}
+            {"command":"acHaMode","mode":50}{{'\0'}}
+        {% elif value == "cool" %}
+            {"command":"acHaMode","mode":51}{{'\0'}}
+        {% elif value == "heat" %}
+            {"command":"acHaMode","mode":52}{{'\0'}}
+        {% elif value == "fan_only" %}
+            {"command":"acHaMode","mode":54}{{'\0'}}
+        {% endif %}
+      fan_mode_state_topic: "your/data/topic"
+      fan_modes: ["auto", "Speed 1", "Speed 2", "Speed 3", "Speed 4", "Speed 5"]
+      fan_mode_state_template: >-
+        {% if value_json.fan == 65 %}
+            auto
+        {% elif value_json.fan == 51 %}
+            Speed 1
+        {% elif value_json.fan == 52 %}
+            Speed 2
+        {% elif value_json.fan == 53 %}
+            Speed 3
+        {% elif value_json.fan == 54 %}
+            Speed 4
+        {% elif value_json.fan == 55 %}
+            Speed 5
+        {% endif %}
+      fan_mode_command_topic: "your/command/topic"
+      fan_mode_command_template: >-
+        {% if value == "auto" %}
+            {"command":"acFan","fan":65}{{'\0'}}
+        {% elif value == "Speed 1" %}
+            {"command":"acFan","fan":51}{{'\0'}}
+        {% elif value == "Speed 2" %}
+            {"command":"acFan","fan":52}{{'\0'}}
+        {% elif value == "Speed 3" %}
+            {"command":"acFan","fan":53}{{'\0'}}
+        {% elif value == "Speed 4" %}
+            {"command":"acFan","fan":54}{{'\0'}}
+        {% elif value == "Speed 5" %}
+            {"command":"acFan","fan":55}{{'\0'}}
+        {% endif %}
+      current_temperature_topic: "your/data/topic"
+      current_temperature_template: "{{ value_json.temp_inside / 10 }}"
+      temperature_state_topic: "your/data/topic"
+      temperature_state_template: "{{ value_json.setpoint / 10 }}"
+      temperature_command_topic: "your/command/topic"
+      temperature_command_template: >-
+        {"command":"acTemp","temp":{{ value | int }}}{{'\0'}}
+      max_temp: 32
+      min_temp: 18
+      precision: 0.5
+      swing_modes: ["Full swing", "Only horizontal", "Only vertical", "No swing"]
+      swing_mode_state_topic: "your/data/topic"
+      swing_mode_state_template: >-
+        {% if value_json.swing_v and value_json.swing_h %}
+            Full swing
+        {% elif value_json.swing_h and not value_json.swing_v %}
+            Only horizontal
+        {% elif value_json.swing_v and not value_json.swing_h %}
+            Only vertical
+        {% elif not value_json.swing_h and not value_json.swing_v %}
+            No swing
+        {% endif %}
+      swing_mode_command_topic: "your/command/topic"
+      swing_mode_command_template: >-
+        {% if value == "Full swing" %}
+            {"command":"acSwing","swingV":true,"swingH":true}{{'\0'}}
+        {% elif value == "Only horizontal" %}
+            {"command":"acSwing","swingV":false,"swingH":true}{{'\0'}}
+        {% elif value == "Only vertical" %}
+            {"command":"acSwing","swingV":true,"swingH":false}{{'\0'}}
+        {% elif value == "No swing" %}
+            {"command":"acSwing","swingV":false,"swingH":false}{{'\0'}}
+        {% endif %}
+      json_attributes_topic: "your/data/topic"
+      json_attributes_template: >
+          { "Outside Temp": {{value_json.temp_outside / 10}},
+            "Coil Temp": {{value_json.temp_coil / 10}},
+            "Fan RPM": {{value_json.fan_rpm}}
+          }
