@@ -24,12 +24,12 @@ I used D6 and D7 as serial port pins for the ESP8266.
 
 ### Phisical setup
 Well, this also fits inside the units, seems good! <br/>
-<img src="https://github.com/MassiPi/DaikinS21/assets/2384381/a4e3e038-e8e2-4ced-9688-f69a0785cdcb" width="50%"></img>
+<img src="https://github.com/MassiPi/DaikinS21/assets/2384381/c33e21e2-6fc4-4717-9fac-01a2bb0648b4" width="50%"></img>
 
 ### Rationale
 i did not want to use already available code since this is not fun enough, so i just wrote my code.
 - I kept a functional bootstrap-based web interface<br/>
-<img src="https://github.com/MassiPi/DaikinS21/assets/2384381/8c2b1f19-cb57-433e-afd4-c85dda0f1e87" width="50%"></img>
+<img src="https://github.com/MassiPi/DaikinS21/assets/2384381/7394fdb5-c716-463d-a2aa-b6ca453478b6" width="50%"></img>
 - i decided to keep the hardware serial functional for debugging, so i moved the control on a software serial
 - i included remotedebug library https://github.com/JoaoLopesF/RemoteDebug (please check the fixes!) to be able to debug the functioning also remotely
 - ota update available
