@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<!-- Required meta tags -->
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+		<!-- Bootstrap CSS -->
+		<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-gH2yIJqKdNHPEq0n4Mqa/HGKIhSkIHeL5AyhkYV8i59U5AR6csBvApHHNl/vI1Bx" crossorigin="anonymous">
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ion-rangeslider/2.3.1/css/ion.rangeSlider.min.css"/>
+		<link href="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.6.1/css/bootstrap4-toggle.min.css" rel="stylesheet">
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+		
+		<link href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+		
+		<style>
+		.loader {
+			position: fixed;
+			display: block;
+			left: 0px;
+			top: 0px;
+			width: 100%;
+			height: 100%;
+			z-index: 9999;
+			opacity: .8;
+			background-color: #000000;
+		}	
+		</style>
+		<title>Daikin</title>
+	</head>
+	<body>
+		<div class="loader"></div>
+		<div class="container-fluid">
+			<div class="row">
+				<div class="col">
+					<h4 class="display-4">Daikin AC Control</h4>
+					<h5 id="subTitle">--</h5>
+				</div>
+			</div>
+			<br/>
+			<div class="row">
+				<div class="col">
+					<div class="card">
+						<div class="card-header">
+							<h5 class="card-title"><i class="bi-thermometer-snow"></i>&nbsp;&nbsp;AC Control</h5>
+						</div>
+					
+						<div class="card-body">				
+							<div class="row">
+								<div class="col-6 text-end">
+									<!--Target temperature-->
+									<button class="btn btn-outline-dark disabled" data-toggle="tooltip" title="Target Temp" style="font-size:2em;"><b class="target-temp">--</b></button>
+									<div class="btn-group-vertical">
+										<button class="btn btn-dark temp-select" style="padding-top:2px;padding-bottom:2px;" data-delta="1" data-toggle="tooltip" title="Temp up"><i class='bi bi-caret-up'></i></button>
+										<button class="btn btn-dark temp-select" style="padding-top:4px;padding-bottom:4px;" data-delta="-1" data-toggle="tooltip" title="Temp down"><i class='bi bi-caret-down'></i></button>
+									</div>
+								</div>
+								<div class="col-6 text-start">
+									<!-- ON/OFF -->
+									&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+									<input type="checkbox" class="btn-check" id="pwr-button" autocomplete="off">
+									<label class="btn btn-danger" for="pwr-button" data-toggle="tooltip" title="Power"><i class="bi bi-power" style="font-size: 2rem;"></i></label>
+								</div>			
+							&nbsp;
+							</div>
+							<div class="row">
+								<div class="col-12 text-center">
+									<!-- Mode -->
+									<div class="btn-group" role="group">
+										<input type="radio" class="btn-check" name="mode" id="modeCool" autocomplete="off" value="51">
+										<label class="btn btn-outline-dark" for="modeCool"  title="Cool" data-toggle="tooltip"><i class="bi bi-snow3" style="font-size: 1.5rem;"></i></label>
+									  
+										<input type="radio" class="btn-check" name="mode" id="modeHeat" autocomplete="off" value="52">
+										<label class="btn btn-outline-dark" for="modeHeat"  title="Heat" data-toggle="tooltip"><i class="bi bi-sun" style="font-size: 1.5rem;"></i></label>
+									  
+										<input type="radio" class="btn-check" name="mode" id="modeDry" autocomplete="off" value="50">
+										<label class="btn btn-outline-dark" for="modeDry"  title="Dry" data-toggle="tooltip"><i class="bi bi-droplet-half" style="font-size: 1.5rem;"></i></label>
+									  
+										<input type="radio" class="btn-check" name="mode" id="modeFan" autocomplete="off" value="54">
+										<label class="btn btn-outline-dark" for="modeFan"  title="Fan" data-toggle="tooltip"><i class="bi bi-fan" style="font-size: 1.5rem;"></i></label>
+									  
+										<input type="radio" class="btn-check" name="mode" id="modeAuto" autocomplete="off" value="49">
+										<label class="btn btn-outline-dark" for="modeAuto"  title="Auto" data-toggle="tooltip"><i style="font-size: 1.5rem;">A</i></label>
+									  </div>
+								</div>
+							&nbsp;
+							</div>
+							<div class="row">
+								<div class="col-12 text-center">
+									<!-- Fan -->
+									<div class="btn-group" role="group">
+										<input type="radio" class="btn-check" name="fan" id="fanAuto" autocomplete="off" value="65">
+										<label class="btn btn-outline-dark" for="fanAuto"  title="Auto" data-toggle="tooltip"><i style="font-size: 1.5rem;">A</i></label>
+									  
+										<input type="radio" class="btn-check" name="fan" id="fan1" autocomplete="off" value="51">
+										<label class="btn btn-outline-dark" for="fan1"  title="1/5" data-toggle="tooltip"><i class="bi bi-1-square" style="font-size: 1.5rem;"></i></label>
+									  
+										<input type="radio" class="btn-check" name="fan" id="fan2" autocomplete="off" value="52">
+										<label class="btn btn-outline-dark" for="fan2"  title="2/5" data-toggle="tooltip"><i class="bi bi-2-square" style="font-size: 1.5rem;"></i></label>
+									  
+										<input type="radio" class="btn-check" name="fan" id="fan3" autocomplete="off" value="53">
+										<label class="btn btn-outline-dark" for="fan3"  title="3/5" data-toggle="tooltip"><i class="bi bi-3-square" style="font-size: 1.5rem;"></i></label>
+									  
+										<input type="radio" class="btn-check" name="fan" id="fan4" autocomplete="off" value="54">
+										<label class="btn btn-outline-dark" for="fan4"  title="4/5" data-toggle="tooltip"><i class="bi bi-4-square" style="font-size: 1.5rem;"></i></label>
+
+										<input type="radio" class="btn-check" name="fan" id="fan5" autocomplete="off" value="55">
+										<label class="btn btn-outline-dark" for="fan5"  title="5/5" data-toggle="tooltip"><i class="bi bi-5-square" style="font-size: 1.5rem;"></i></label>
+									</div>
+								</div>
+							&nbsp;
+							</div>
+							<div class="row">
+								<div class="col-12 text-center">
+									<!-- Wings Direction -->
+
+									<div class="btn-group" role="group">
+										<input type="checkbox" class="btn-check" id="oscv-button" autocomplete="off">
+										<label class="btn btn-outline-dark" for="oscv-button"  title="Vertical Oscillation" data-toggle="tooltip"><i class="bi bi-arrow-down-up" style="font-size:1.5rem;"></i></label>
+									  
+										<input type="checkbox" class="btn-check" id="osch-button" autocomplete="off">
+										<label class="btn btn-outline-dark" for="osch-button"  title="Vertical Oscillation" data-toggle="tooltip"><i class="bi bi-arrow-left-right" style="font-size:1.5rem;"></i></label>
+										
+									</div>
+									&nbsp;&nbsp;
+									<button type="button" class="btn btn-dark disabled" title="Fan speed" data-toggle="tooltip" style="pointer-events: auto;"><i class="bi bi-fan" style="font-size: 1.5rem;"></i></button>
+									<button type="button" class="btn btn-light" id="fanSpeed" style="font-size:1.5rem;" disabled>--</button>
+								</div>
+							&nbsp;
+							</div>
+							<div class="row">
+								<div class="col-12 text-center">
+									<div class="btn-group" role="group" >
+										<button type="button" class="btn btn-dark disabled" title="Inside" data-toggle="tooltip" style="pointer-events: auto;"><i class="bi bi-house" style="font-size: 1.5rem;"></i></button>
+										<button type="button" class="btn btn-light" id="inTemp" style="font-size:1.5rem;" disabled>--°C</button>
+										<button type="button" class="btn btn-dark disabled" title="Outside" data-toggle="tooltip" style="pointer-events: auto;"><i class="bi bi-cloud" style="font-size: 1.5rem;"></i></button>
+										<button type="button" class="btn btn-light" id="outTemp" style="font-size:1.5rem;" disabled>--°C</button>
+									</div>
+								</div>
+							&nbsp;
+							</div>
+							<div class="row">
+								<div class="col-12 text-center">
+									<div class="btn-group" role="group" >
+										<button type="button" class="btn btn-dark disabled" title="Coil" data-toggle="tooltip" style="pointer-events: auto;"><i class="bi bi-water" style="font-size: 1.5rem;"></i></button>
+										<button type="button" class="btn btn-light" id="coilTemp" style="font-size:1.5rem;" disabled>--°C</button>
+										<button type="button" class="btn btn-dark disabled" title="Compressor" data-toggle="tooltip" style="pointer-events: auto;"><i class="bi bi-house-gear" style="font-size: 1.5rem;"></i></button>
+										<button type="button" class="btn btn-light disabled" data-toggle="tooltip" style="pointer-events: auto;" id="compressor">&nbsp;&nbsp;&nbsp;&nbsp;</button>
+									</div>
+								</div>
+							&nbsp;
+							</div>
+
+						</div>
+					
+					</div>
+
+				</div>
+			</div>
+			<br/>
+			<div class="row">
+
+				<div class="col">
+					<div class="card">
+						<div class="card-header">
+							<h5 class="card-title"><i class="bi-gear"></i>&nbsp;&nbsp;System Config</h5>
+						</div>
+						<div class="card-body text-center">
+							<p class="lead">
+							<span class="badge rounded-pill bg-info text-dark" data-toggle="tooltip" data-placement="bottom" title="Period in seconds between each reading">Reading Period:</span>
+							<input type="text" class="js-range-slider" id="cfgPeriod" value=""/>
+
+							<span class="badge rounded-pill bg-info text-dark" data-toggle="tooltip" data-placement="bottom" title="Webpage access control">Device Hostname:</span>
+							</p>
+							<form id="hostnameForm">
+							<div class="row">
+								<div class="text-center">
+									<div class="input-group input-group-sm">
+										<div class="input-group-text">
+											<i class="bi-laptop" title="Hostname" data-toggle="tooltip"  data-placement="bottom"></i>
+										</div>
+										<input id="hostname" placeholder="insert Hostname" type="text" class="form-control">
+										<div class="input-group-append">
+											<button id="setHostname" class="btn btn-secondary btn-sm">Set</button>
+										</div>
+									</div>
+								</div>
+							</div>
+							</form>
+							<br/>
+							<p class="lead">
+							<span class="badge rounded-pill bg-info text-dark" data-toggle="tooltip" data-placement="bottom" title="Webpage access control">HTTP security:</span>
+							<input type="checkbox" id="httpSecurityToggle" data-size="mini" data-toggle="toggle" data-onstyle="primary" data-offstyle="secondary" data-on="<i class='bi-lock'></i>" data-off="<i class='bi-unlock'></i>"  data-style="ios"/>
+							</p>
+							<form id="httpSecurityForm">
+							<div class="form-group row">
+								<div class="input-group input-group-sm">
+									<div class="input-group-text">
+										<i class="bi-person" data-toggle="tooltip"  data-placement="bottom" title="HTTP Username"></i>
+									</div>
+									<input id="httpUsername" name="httpUsername" placeholder="insert username" type="text" aria-describedby="httpUsernameHelpBlock" required="required" class="form-control">
+
+									<div class="input-group-text">
+										<i class="bi-key" data-toggle="tooltip"  data-placement="bottom" title="HTTP Password"></i>
+									</div>
+									<input id="httpPassword" name="httpPassword" placeholder="insert password" type="password" aria-describedby="httpPasswordHelpBlock" required="required" class="form-control">
+									<div class="input-group-append">
+										<button name="submit" type="submit" class="btn btn-secondary btn-sm">Set</button>
+									</div>
+								</div> 
+							</div> 
+							</form>	
+							
+						</div>
+					</div>
+				</div>
+				<div class="col">
+					<div class="card">
+						<div class="card-header">
+							<h5 class="card-title"><i class="bi-info-square"></i>&nbsp;&nbsp;Device Info</h5>
+						</div>
+						<div class="card-body text-center">
+							<p class="lead">
+							<span class="badge rounded-pill bg-info text-dark">IP address:</span>
+							<span id="ipAddress"> -- </span></br>
+							<span class="badge rounded-pill bg-info text-dark">Wifi Network (RSSI):</span>
+							<span id="wifiNetwork"> -- </span>&nbsp;<span id="wifiRssi"> -- </span></br>
+							<span class="badge rounded-pill bg-info text-dark">CPU/FLASH freq:</span>
+							<span id="cpuMhz"> -- </span> / <span id="flashMhz"> -- </span></br>
+							<span class="badge rounded-pill bg-info text-dark">Chip ID:</span>
+							<span id="chipId"> -- </span></br>
+							<span class="badge rounded-pill bg-info text-dark">Core version:</span>
+							<span id="coreVer"> -- </span></br>
+							<span class="badge rounded-pill bg-info text-dark">Sdk version:</span>
+							<span id="sdkVer"> -- </span></br>
+							<span class="badge rounded-pill bg-info text-dark">Last Reset reason:</span>
+							<span id="lastRst"> -- </span></br>
+							<span class="badge rounded-pill bg-info text-dark">Start time:</span>
+							<span id="startTimeMsg"> -- </span></br>
+							<span class="badge rounded-pill bg-info text-dark">Uptime:</span>
+							<span id="upTime"> -- </span></br>
+							<div class="text-center">
+								<a href="#" class="btn btn-danger btn-sm" id="cmdRst" role="button" data-toggle="tooltip" data-placement="bottom" title="WARNING! Resets remotely the device!"><i class="bi-power"></i></a>
+								&nbsp;
+								<a href="#" class="btn btn-dark btn-sm" id="cmdWifiRst" role="button" data-toggle="tooltip" data-placement="bottom" title="WARNING! Deletes WiFi credentials!"><i class="bi-wifi-off"></i></a>
+								&nbsp;
+							</div>
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	<nav class="navbar navbar-dark bg-dark">
+		<div class="container-fluid text-center">
+			<div class="w-100">
+				<span class="navbar-brand" style="font-size: 0.75em;"><i>Daiking Wired Controller v. 1.0 - 20220701</i></span>
+			</div>
+		</div>
+	</nav>
+
+		<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r" crossorigin="anonymous"></script>
+		<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js" integrity="sha384-fbbOQedDUMZZ5KreZpsbe1LCZPVmfTnH7ois6mU1QK+m14rQ1l2bGBq41eYeM/fS" crossorigin="anonymous"></script>
+
+		<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.6.1/js/bootstrap4-toggle.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/ion-rangeslider/2.3.1/js/ion.rangeSlider.min.js"></script>
+		  
+    	<script src="daikin.js"></script>
+	</body>
+</html>
