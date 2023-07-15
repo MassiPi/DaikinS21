@@ -3,6 +3,13 @@ mqtt
   climate:
     - name: "Living AC"
       icon: mdi:air-conditioner
+      power_command_topic: "your/command/topic"
+      power_command_template: >-
+        {% if value == "ON" %}
+            {"command":"acPower","power":true}{{'\0'}}
+        {% elif value == "OFF" %}
+            {"command":"acPower","power":false}{{'\0'}}
+        {% endif %}   
       mode_state_topic: "your/data/topic"
       modes: ["auto", "off", "dry", "cool", "heat", "fan_only"]
       mode_state_template: >-
