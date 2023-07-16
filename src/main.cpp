@@ -8,6 +8,18 @@ Publishes data on mqtt and on http page
 Receives command on mqtt and on http page
 
 Main activities are implemented with a states-machine to limit blocking in code
+
+v.1.1
+moving under config:
+- boolean to enable http control/info
+- boolean to enable mqtt control/info
+- mqtt topics
+
+Consequents modification to code to manage conditional enabling of reporting channels
+
+Added some debugging commands for remoteDebug
+
+Also moved under struct the local state vars, for cleaner code
 */
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
@@ -27,14 +39,17 @@ Main activities are implemented with a states-machine to limit blocking in code
 #include <LittleFS.h>
 #include <FS.h>
 
-const char* apname = "WiFi-daikin"; //name used for config AP when wifi is not found
+/* Useful Constants */
+#define SECS_PER_MIN  (60UL)
+#define SECS_PER_HOUR (3600UL)
+#define SECS_PER_DAY  (86400UL)
+/* Useful Macros for getting elapsed time */
+#define numberOfSeconds(_time_) (_time_ % SECS_PER_MIN)  
+#define numberOfMinutes(_time_) ((_time_ / SECS_PER_MIN) % SECS_PER_MIN)
+#define numberOfHours(_time_) (( _time_% SECS_PER_DAY) / SECS_PER_HOUR)
+#define numberOfDays(_time_) ( _time_ / SECS_PER_DAY) 
 
-//mqtt consts. Could be collected through config portal..
-const char* mqttServer = "mqttbroker";
-const char* mqttUser = "user";
-const char* mqttPass = "pass";
-const char* mqttPubTopic = "your/mqtt/data/topic";
-const char* mqttSubTopic = "your/mqtt/command/topic";
+const char* apname = "WiFi-daikin"; //name used for config AP when wifi is not found
 
 //ac variables
 const uint8_t modes[6] = {'1','2','3','4','6'}; // auto, dry, cool, heat, fan -> in ASCII 49 50 51 52 54
@@ -118,17 +133,19 @@ std::string speed_to_string(uint8_t mode) {
 #define NAK 21
 
 //variables to store AC values
-bool power_on = false;
-uint8_t mode = '1';
-uint8_t fan = 'A';
-int16_t setpoint = 270;
-bool swing_v = false;
-bool swing_h = false;
-int16_t temp_inside = 0;
-int16_t temp_outside = 0;
-int16_t temp_coil = 0;
-uint16_t fan_rpm = 0;
-bool idle = true;
+struct {
+  bool power_on = false;
+  uint8_t mode = '1';
+  uint8_t fan = 'A';
+  int16_t setpoint = 270;
+  bool swing_v = false;
+  bool swing_h = false;
+  int16_t temp_inside = 0;
+  int16_t temp_outside = 0;
+  int16_t temp_coil = 0;
+  uint16_t fan_rpm = 0;
+  bool idle = true;
+} acValues;
 
 //variable and consts for states-machine
 const std::vector<std::string> acQueries = {"F1", "F5", "RH", "RI", "Ra", "RL", "Rd"}; //list of good used ac queries
@@ -141,6 +158,7 @@ bool frameReading = false, waiting = false, STXreceived = false, valueChanged = 
 uint8_t serialByte = 0; //buffer for single bytes read
 uint8_t frameChecksum = 0, calcChecksum = 0;
 std::vector<uint8_t> acCommand = {}; //vector to hold commands
+bool resetNeeded = false; //used to recall the need for a reset when changing relevant settings
 
 //general vars
 WiFiClient espClient;
@@ -157,9 +175,20 @@ AsyncWiFiManager wifiConnManager(&server,&dns);
 struct {
   uint8_t check; //manual value to force update
   char hostname[32]; //device hostname
+  //http auth section
   bool httpAuthEnable; //http authentication state
   char httpUser[32];   //http user
   char httpPass[32];   //http pass. Could be stored crypted..
+  //http control
+  bool httpControlEnable;
+  //mqtt control
+  bool mqttControlEnable;
+  char mqttUser[32];   //mqtt user
+  char mqttPass[32];   //mqtt pass. Could be stored crypted..
+  char mqttBroker[64];   //mqtt broker
+  char mqttSubTopic[64];   //mqtt topic to subscribe (receive commands)
+  char mqttPubTopic[64];   //mqtt topic to publish data to
+  
   uint8_t period; //reading period, in seconds
 } config;
 
@@ -175,12 +204,19 @@ char wsTxt[256]; //holds ws commands from clients
 void sendConfigWs(AsyncWebSocketClient * client){
   debugD("Sending config to client");
   //this sends the game config to clients
-  DynamicJsonDocument root(256);
+  DynamicJsonDocument root(512);
   root["type"] = "config";
   root["period"] = config.period;
   root["hostname"] = config.hostname;
   root["httpSecurityEnable"] = config.httpAuthEnable;
   root["httpSecurityUser"] = config.httpUser;
+  root["httpControlEnable"] = config.httpControlEnable;
+  root["mqttControlEnable"] = config.mqttControlEnable;
+  root["mqttUser"] = config.mqttUser;
+  root["mqttBroker"] = config.mqttBroker;
+  root["mqttSubTopic"] = config.mqttSubTopic;
+  root["mqttPubTopic"] = config.mqttPubTopic;
+  root["resetNeeded"] = resetNeeded;
 
   size_t len = measureJson(root);
   AsyncWebSocketMessageBuffer * buffer = ws.makeBuffer(len); //  creates a buffer (len + 1) for you.
@@ -223,17 +259,17 @@ void sendSensorDataWs(AsyncWebSocketClient * client){
   debugD("Sending sensor data to client");
   DynamicJsonDocument root(512);
   root["type"] = "sensor";
-  root["power"] = power_on;
-  root["mode"] = mode;
-  root["fan"] = fan;
-  root["setpoint"] = setpoint;
-  root["swing_v"] = swing_v;
-  root["swing_h"] = swing_h;
-  root["temp_inside"] = temp_inside;
-  root["temp_outside"] = temp_outside;
-  root["temp_coil"] = temp_coil;
-  root["fan_rpm"] = fan_rpm;
-  root["idle"] = idle;
+  root["power"] = acValues.power_on;
+  root["mode"] = acValues.mode;
+  root["fan"] = acValues.fan;
+  root["setpoint"] = acValues.setpoint;
+  root["swing_v"] = acValues.swing_v;
+  root["swing_h"] = acValues.swing_h;
+  root["temp_inside"] = acValues.temp_inside;
+  root["temp_outside"] = acValues.temp_outside;
+  root["temp_coil"] = acValues.temp_coil;
+  root["fan_rpm"] = acValues.fan_rpm;
+  root["idle"] = acValues.idle;
 
   size_t len = measureJson(root);
   AsyncWebSocketMessageBuffer * buffer = ws.makeBuffer(len); //  creates a buffer (len + 1) for you.
@@ -429,14 +465,14 @@ void write_frame(std::vector<uint8_t> frame) {
 
 void dumpState() {
   debugI("** BEGIN STATE *****************************");
-  debugI("  Power: %i", power_on);
-  debugI("   Mode: %s (%s)", mode_to_string(mode).c_str(), idle ? "idle" : "active");
-  debugI(" Target: %.1f C", setpoint / 10.0);
-  debugI("    Fan: %s (%d rpm)", speed_to_string(fan).c_str(), fan_rpm);
-  debugI("  Swing: H:%i V:%i", swing_h, swing_v);
-  debugI(" Inside: %.1f C", temp_inside / 10.0);
-  debugI("Outside: %.1f C", temp_outside / 10.0);
-  debugI("   Coil: %.1f C", temp_coil / 10.0);
+  debugI("  Power: %i", acValues.power_on);
+  debugI("   Mode: %s (%s)", mode_to_string(acValues.mode).c_str(), acValues.idle ? "idle" : "active");
+  debugI(" Target: %.1f C", acValues.setpoint / 10.0);
+  debugI("    Fan: %s (%d rpm)", speed_to_string(acValues.fan).c_str(), acValues.fan_rpm);
+  debugI("  Swing: H:%i V:%i", acValues.swing_h, acValues.swing_v);
+  debugI(" Inside: %.1f C", acValues.temp_inside / 10.0);
+  debugI("Outside: %.1f C", acValues.temp_outside / 10.0);
+  debugI("   Coil: %.1f C", acValues.temp_coil / 10.0);
   debugI("** END STATE *****************************");
 }
 
@@ -449,21 +485,26 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   debugD("%s", wsTxt);
 }
 
+uint32_t mqttConnAttempt = 0; //don't want tons of useless connections attemps
 bool mqttConnect() {
   // Reconnect to MQTT
   if (WiFi.status() == WL_CONNECTED) {
-    debugD("Attempting MQTT connection...");
     // Create a random client ID
     String mqttClientId = "ESP8266Client-";
     mqttClientId += String(random(0xffff), HEX);
     // Attempt to connect
-    if (mqttClient.connect(mqttClientId.c_str(), mqttUser, mqttPass)) {
-      debugD("connected");
-      // ... and resubscribe
-      mqttClient.subscribe(mqttSubTopic);
-      return true;
+    if ( millis() - mqttConnAttempt > 1000UL ){
+      if (mqttClient.connect(mqttClientId.c_str(), config.mqttUser, config.mqttPass)) {
+        debugD("Connected to MQTT broker");
+        // ... and resubscribe
+        mqttClient.subscribe(config.mqttSubTopic);
+        return true;
+      } else {
+        debugE("Failed mqtt connection with RC=%i", mqttClient.state());
+        mqttConnAttempt = millis();
+        return false;
+      }
     } else {
-      debugE("Failed mqtt connection with RC=%i", mqttClient.state());
       return false;
     }
   } else {
@@ -471,6 +512,9 @@ bool mqttConnect() {
     return false;
   }
 }
+
+//header for remoteDebug callback function
+void processCmdRemoteDebug();
 
 void setup() {
   Serial.begin(115200);
@@ -481,23 +525,36 @@ void setup() {
   //getting actual config
   EEPROM.get(0,config);
 
-  //mqtt
-  mqttClient.setServer(mqttServer, 1883);
-  mqttClient.setCallback(mqttCallback);
-  mqttClient.setBufferSize(512);
-
   //manual fix
-  if ( config.check != 111 ){ //used for fists config setup
+  if ( config.check != 99 ){ //used for fists config setup
     String temp;
-    config.check = 111; 
+    config.check = 99; 
     //hostname
-    strcpy(config.hostname, "livingDaikin");
+    strcpy(config.hostname, "myDaikin");
     config.httpAuthEnable = false;
     strcpy(config.httpUser, "user");
     strcpy(config.httpPass, "pass");
+    //http control
+    config.httpControlEnable = true;
+    //mqtt control
+    config.mqttControlEnable = false;
+    strcpy(config.mqttUser, "user");
+    strcpy(config.mqttPass, "pass");
+    strcpy(config.mqttBroker, "broker");
+    strcpy(config.mqttSubTopic, "subTopic");
+    strcpy(config.mqttPubTopic, "pubTopic");
+  
     config.period = 15;
     EEPROM.put(0,config);
     EEPROM.commit();  
+  }
+
+  //mqtt
+  mqttClient.setCallback(mqttCallback);
+  mqttClient.setBufferSize(512);
+  mqttClient.setSocketTimeout(1);
+  if ( config.mqttControlEnable == true ) {
+    mqttClient.setServer(config.mqttBroker, 1883);
   }
 
   //add hostname request
@@ -540,6 +597,18 @@ void setup() {
 	Debug.showColors(true); // Colors
   Debug.showColors(true); // Colors
   Debug.setSerialEnabled(true);
+  //callback to manage custom commands
+  String helpCmd = "millis      -> Return actual millis() counter\r\n";
+    helpCmd.concat("time        -> Return actual server time\r\n");
+    helpCmd.concat("timestamp   -> Return actual server timestamp\r\n");
+    helpCmd.concat("uptime      -> Return server start time and uptime\r\n");
+    helpCmd.concat("restart     -> Restart device\r\n");
+    helpCmd.concat("resetWiFi   -> Reset WiFi\r\n");
+    helpCmd.concat("settings    -> Dump settings\r\n");
+    helpCmd.concat("acvalues    -> Dump AC values\r\n");
+    helpCmd.concat("\r\n");
+  Debug.setHelpProjectsCmds(helpCmd);
+	Debug.setCallBackProjectCmds(&processCmdRemoteDebug);
 
   Serial.print("Setting up timeserver");
   configTime("CET-1CEST,M3.5.0/2,M10.5.0/3", "pool.ntp.org");
@@ -623,42 +692,45 @@ void setup() {
     request->send(LittleFS, "/favicon.ico", "image/x-icon");
   }).setFilter(ON_STA_FILTER);
 
-  //returns info. Could be authenticated
-  server.on("/state", HTTP_GET, [](AsyncWebServerRequest *request) {
-      AsyncResponseStream *response = request->beginResponseStream("application/json");
-      StaticJsonDocument<256> root;
-      root["type"] = "sensor";
-      root["power"] = power_on;
-      root["mode"] = mode;
-      root["fan"] = fan;
-      root["setpoint"] = setpoint;
-      root["swing_v"] = swing_v;
-      root["swing_h"] = swing_h;
-      root["temp_inside"] = temp_inside;
-      root["temp_outside"] = temp_outside;
-      root["temp_coil"] = temp_coil;
-      root["fan_rpm"] = fan_rpm;
-      root["idle"] = idle;
-      serializeJson(root, *response);
-      request->send(response);
-  }).setFilter(ON_STA_FILTER);
+  if ( config.httpControlEnable == true ){
+    //returns info.
+    server.on("/state", HTTP_GET, [](AsyncWebServerRequest *request) {
+        if(config.httpAuthEnable == true && !request->authenticate(config.httpUser, config.httpPass))
+          return request->requestAuthentication();
+        AsyncResponseStream *response = request->beginResponseStream("application/json");
+        StaticJsonDocument<256> root;
+        root["type"] = "sensor";
+        root["power"] = acValues.power_on;
+        root["mode"] = acValues.mode;
+        root["fan"] = acValues.fan;
+        root["setpoint"] = acValues.setpoint;
+        root["swing_v"] = acValues.swing_v;
+        root["swing_h"] = acValues.swing_h;
+        root["temp_inside"] = acValues.temp_inside;
+        root["temp_outside"] = acValues.temp_outside;
+        root["temp_coil"] = acValues.temp_coil;
+        root["fan_rpm"] = acValues.fan_rpm;
+        root["idle"] = acValues.idle;
+        serializeJson(root, *response);
+        request->send(response);
+    }).setFilter(ON_STA_FILTER);
 
-  //accepts command, same format
-  AsyncCallbackJsonWebHandler *handler = new AsyncCallbackJsonWebHandler("/control", [](AsyncWebServerRequest *request, JsonVariant &json) {
-    StaticJsonDocument<256> data;
-    if (json.is<JsonArray>()){
-      data = json.as<JsonArray>();
-    } else if (json.is<JsonObject>()){
-      data = json.as<JsonObject>();
+    //accepts command, same format
+    AsyncCallbackJsonWebHandler *handler = new AsyncCallbackJsonWebHandler("/control", [](AsyncWebServerRequest *request, JsonVariant &json) {
+      StaticJsonDocument<256> data;
+      if (json.is<JsonArray>()){
+        data = json.as<JsonArray>();
+      } else if (json.is<JsonObject>()){
+        data = json.as<JsonObject>();
+      }
+      serializeJson(data, wsTxt);
+      request->send(200, "application/json", "{\"received\":true}");
+    });
+    if ( config.httpAuthEnable == true ){
+      handler->setAuthentication(config.httpUser, config.httpPass);
     }
-    serializeJson(data, wsTxt);
-    request->send(200, "application/json", "{\"received\":true}");
-  });
-  //HTTP Basic authentication
-  //if ( config.httpAuthEnable == true ){
-  //  handler->setAuthentication(config.httpUser, config.httpPass);
-  //}
-  server.addHandler(handler);
+    server.addHandler(handler);
+  }
 
   //base websockets
   if ( config.httpAuthEnable == true ){
@@ -710,26 +782,28 @@ void loop() {
           //sending values to clients
           sendSensorDataWs(0);
           //publishing on mqtt
-          if (mqttClient.connected() || mqttConnect() ){
-            debugD("Publishing values");
-            DynamicJsonDocument root(512);
-            root["type"] = "sensor";
-            root["power"] = power_on;
-            root["mode"] = mode;
-            root["fan"] = fan;
-            root["setpoint"] = setpoint;
-            root["swing_v"] = swing_v;
-            root["swing_h"] = swing_h;
-            root["temp_inside"] = temp_inside;
-            root["temp_outside"] = temp_outside;
-            root["temp_coil"] = temp_coil;
-            root["fan_rpm"] = fan_rpm;
-            root["idle"] = idle;
-          
-            char buffer[512];
-            serializeJson(root, buffer);
-            mqttClient.publish(mqttPubTopic, buffer, true);
-          };        
+          if ( config.mqttControlEnable == true ){
+            if (mqttClient.connected() || mqttConnect() ){
+              debugD("Publishing values");
+              DynamicJsonDocument root(512);
+              root["type"] = "sensor";
+              root["power"] = acValues.power_on;
+              root["mode"] = acValues.mode;
+              root["fan"] = acValues.fan;
+              root["setpoint"] = acValues.setpoint;
+              root["swing_v"] = acValues.swing_v;
+              root["swing_h"] = acValues.swing_h;
+              root["temp_inside"] = acValues.temp_inside;
+              root["temp_outside"] = acValues.temp_outside;
+              root["temp_coil"] = acValues.temp_coil;
+              root["fan_rpm"] = acValues.fan_rpm;
+              root["idle"] = acValues.idle;
+            
+              char buffer[512];
+              serializeJson(root, buffer);
+              mqttClient.publish(config.mqttPubTopic, buffer, true);
+            };
+          }
           //resetting boolean
           valueChanged = false;
         }
@@ -818,84 +892,84 @@ void loop() {
         case 'G':      // F -> G
           switch (frameBytes[1]) {
             case '1':  // F1 -> G1 -- Basic State
-              if ( power_on != (bool)(frameBytes[2] == '1') ){
-                debugD("Power changed from %i to %i", power_on, (bool)(frameBytes[2] == '1'));
-                power_on = (frameBytes[2] == '1');
+              if ( acValues.power_on != (bool)(frameBytes[2] == '1') ){
+                debugD("Power changed from %i to %i", acValues.power_on, (bool)(frameBytes[2] == '1'));
+                acValues.power_on = (frameBytes[2] == '1');
                 valueChanged = true;
               }
-              if ( mode != (uint8_t)frameBytes[3] ){
-                debugD("Mode changed from %i to %i", mode, (uint8_t)frameBytes[3]);
-                mode = frameBytes[3];
+              if ( acValues.mode != (uint8_t)frameBytes[3] ){
+                debugD("Mode changed from %i to %i", acValues.mode, (uint8_t)frameBytes[3]);
+                acValues.mode = frameBytes[3];
                 valueChanged = true;
               }
-              if ( fan != (uint8_t)frameBytes[5] ){
-                debugD("Fan changed from %i to %i", fan, (uint8_t)frameBytes[5]);
-                fan = frameBytes[5];
+              if ( acValues.fan != (uint8_t)frameBytes[5] ){
+                debugD("Fan changed from %i to %i", acValues.fan, (uint8_t)frameBytes[5]);
+                acValues.fan = frameBytes[5];
                 valueChanged = true;
               }
-              if ( setpoint != (int16_t)((frameBytes[4] - 28) * 5) ){
+              if ( acValues.setpoint != (int16_t)((frameBytes[4] - 28) * 5) ){
                 //only valid if mode is different from DRY and FAN
-                if ( mode != 50 && mode != 54 ){
-                  debugD("Setpoint changed from %i to %i", setpoint, (int16_t)((frameBytes[4] - 28) * 5));
-                  setpoint = ((frameBytes[4] - 28) * 5);  // Celsius * 10
+                if ( acValues.mode != 50 && acValues.mode != 54 ){
+                  debugD("Setpoint changed from %i to %i", acValues.setpoint, (int16_t)((frameBytes[4] - 28) * 5));
+                  acValues.setpoint = ((frameBytes[4] - 28) * 5);  // Celsius * 10
                   valueChanged = true;
                 }
               }
-              debugD("Power is %i, mode is %s, setpoint is %i, fan is %s", power_on, mode_to_string(mode).c_str(), setpoint, speed_to_string(fan).c_str());
+              debugD("Power is %i, mode is %s, setpoint is %i, fan is %s", acValues.power_on, mode_to_string(acValues.mode).c_str(), acValues.setpoint, speed_to_string(acValues.fan).c_str());
               break;
             case '5':  // F5 -> G5 -- Swing state
-              if ( swing_v != (bool)(frameBytes[2] & 1) ){
-                debugD("SwingV changed from %i to %i", swing_v, (bool)(frameBytes[2] & 1));
-                swing_v = frameBytes[2] & 1;
+              if ( acValues.swing_v != (bool)(frameBytes[2] & 1) ){
+                debugD("SwingV changed from %i to %i", acValues.swing_v, (bool)(frameBytes[2] & 1));
+                acValues.swing_v = frameBytes[2] & 1;
                 valueChanged = true;
               }
-              if ( swing_h != (bool)(frameBytes[2] & 2) ){
-                debugD("SwingH changed from %i to %i", swing_h, (bool)(frameBytes[2] & 2));
-                swing_h = frameBytes[2] & 2;
+              if ( acValues.swing_h != (bool)(frameBytes[2] & 2) ){
+                debugD("SwingH changed from %i to %i", acValues.swing_h, (bool)(frameBytes[2] & 2));
+                acValues.swing_h = frameBytes[2] & 2;
                 valueChanged = true;
               }
-              debugD("V-Swing is %i, H-Swing is %i", swing_v, swing_h);
+              debugD("V-Swing is %i, H-Swing is %i", acValues.swing_v, acValues.swing_h);
               break;
           }
           break;
         case 'S':      // R -> S
           switch (frameBytes[1]) {
             case 'H':  // Inside temperature
-              if ( temp_inside != temp_bytes_to_c10(&frameBytes[2]) ){
-                debugD("Temp Inside changed from %i to %i", temp_inside, temp_bytes_to_c10(&frameBytes[2]));
-                temp_inside = temp_bytes_to_c10(&frameBytes[2]);
+              if ( acValues.temp_inside != temp_bytes_to_c10(&frameBytes[2]) ){
+                debugD("Temp Inside changed from %i to %i", acValues.temp_inside, temp_bytes_to_c10(&frameBytes[2]));
+                acValues.temp_inside = temp_bytes_to_c10(&frameBytes[2]);
                 valueChanged = true;
               }
-              debugD("Temp inside is %i", temp_inside);
+              debugD("Temp inside is %i", acValues.temp_inside);
               break;
             case 'I':  // Coil temperature
-              if ( temp_coil != temp_bytes_to_c10(&frameBytes[2]) ){
-                debugD("Temp Coil changed from %i to %i", temp_coil, temp_bytes_to_c10(&frameBytes[2]));
-                temp_coil = temp_bytes_to_c10(&frameBytes[2]);
+              if ( acValues.temp_coil != temp_bytes_to_c10(&frameBytes[2]) ){
+                debugD("Temp Coil changed from %i to %i", acValues.temp_coil, temp_bytes_to_c10(&frameBytes[2]));
+                acValues.temp_coil = temp_bytes_to_c10(&frameBytes[2]);
                 valueChanged = true;
               }
-              debugD("Temp coil is %i", temp_coil);
+              debugD("Temp coil is %i", acValues.temp_coil);
               break;
             case 'a':  // Outside temperature
-              if ( temp_outside != temp_bytes_to_c10(&frameBytes[2]) ){
-                debugD("Temp Outside changed from %i to %i", temp_outside, temp_bytes_to_c10(&frameBytes[2]));
-                temp_outside = temp_bytes_to_c10(&frameBytes[2]);
+              if ( acValues.temp_outside != temp_bytes_to_c10(&frameBytes[2]) ){
+                debugD("Temp Outside changed from %i to %i", acValues.temp_outside, temp_bytes_to_c10(&frameBytes[2]));
+                acValues.temp_outside = temp_bytes_to_c10(&frameBytes[2]);
                 valueChanged = true;
               }
-              debugD("Temp outside is %i", temp_outside);
+              debugD("Temp outside is %i", acValues.temp_outside);
               break;
             case 'L':  // Fan speed
-              if ( fan_rpm != (bytes_to_num(&frameBytes[2], frameBytes.size()-2) * 10) ){
-                debugD("Fan RPM changed from %i to %i", fan_rpm, (bytes_to_num(&frameBytes[2], frameBytes.size()-2) * 10));
-                fan_rpm = bytes_to_num(&frameBytes[2], frameBytes.size()-2) * 10;
+              if ( acValues.fan_rpm != (bytes_to_num(&frameBytes[2], frameBytes.size()-2) * 10) ){
+                debugD("Fan RPM changed from %i to %i", acValues.fan_rpm, (bytes_to_num(&frameBytes[2], frameBytes.size()-2) * 10));
+                acValues.fan_rpm = bytes_to_num(&frameBytes[2], frameBytes.size()-2) * 10;
                 valueChanged = true;
               }
-              debugD("Fan rpm is %i", fan_rpm);
+              debugD("Fan rpm is %i", acValues.fan_rpm);
               break;
             case 'd':  // Compressor state / frequency? Idle if 0.
-              if ( idle != (bool)(frameBytes[2] == '0' && frameBytes[3] == '0' && frameBytes[4] == '0') ){
-                debugD("Idle changed from %i to %i", idle, (bool)(frameBytes[2] == '0' && frameBytes[3] == '0' && frameBytes[4] == '0'));
-                idle = (frameBytes[2] == '0' && frameBytes[3] == '0' && frameBytes[4] == '0');
+              if ( acValues.idle != (bool)(frameBytes[2] == '0' && frameBytes[3] == '0' && frameBytes[4] == '0') ){
+                debugD("Idle changed from %i to %i", acValues.idle, (bool)(frameBytes[2] == '0' && frameBytes[3] == '0' && frameBytes[4] == '0'));
+                acValues.idle = (frameBytes[2] == '0' && frameBytes[3] == '0' && frameBytes[4] == '0');
                 valueChanged = true;
               }
               break;
@@ -1023,10 +1097,14 @@ void loop() {
         hostname.toCharArray(config.hostname, 32);
         WiFi.hostname(config.hostname);
         debugD("Updating hostname to %s", hostname.c_str());
+        //need a reset
+        resetNeeded = true;
       }
       if ( wsMsg["target"].as<String>() == "httpEnable" ){
         config.httpAuthEnable = wsMsg["value"].as<bool>();
         debugD("Updating httpAuthEnable %d", wsMsg["value"].as<bool>());
+        //need a reset
+        resetNeeded = true;
       }
       if ( wsMsg["target"].as<String>() == "httpAccessData" ){
         String user,pass;
@@ -1037,7 +1115,48 @@ void loop() {
         pass.toCharArray(config.httpPass, 32);
 
         debugD("Updating Http access data: User: %s - Pass: %s", user.c_str(), pass.c_str());
+        //need a reset
+        resetNeeded = true;
       }
+      if ( wsMsg["target"].as<String>() == "httpControlEnable" ){
+        config.httpControlEnable = wsMsg["value"].as<bool>();
+        debugD("Updating httpControlEnable %d", wsMsg["value"].as<bool>());
+        //need a reset
+        resetNeeded = true;
+      }
+      if ( wsMsg["target"].as<String>() == "mqttControlEnable" ){
+        config.mqttControlEnable = wsMsg["value"].as<bool>();
+        debugD("Updating mqttControlEnable %d", wsMsg["value"].as<bool>());
+        //need a reset
+        resetNeeded = true;
+      }
+      if ( wsMsg["target"].as<String>() == "mqttAccessData" ){
+        String user,pass;
+        user = wsMsg["username"].as<String>();
+        pass = wsMsg["password"].as<String>();    
+        
+        user.toCharArray(config.mqttUser, 32);
+        pass.toCharArray(config.mqttPass, 32);
+
+        debugD("Updating Mqtt access data: User: %s - Pass: %s", user.c_str(), pass.c_str());
+        //need a reset
+        resetNeeded = true;
+      }
+      if ( wsMsg["target"].as<String>() == "mqttData" ){
+        String broker,subTopic, pubTopic;
+        broker = wsMsg["broker"].as<String>();
+        subTopic = wsMsg["subTopic"].as<String>();    
+        pubTopic = wsMsg["pubTopic"].as<String>();    
+
+        broker.toCharArray(config.mqttBroker, 64);
+        subTopic.toCharArray(config.mqttSubTopic, 64);
+        pubTopic.toCharArray(config.mqttPubTopic, 64);
+
+        debugD("Updating Mqtt data: Broker: %s - SubTopic: %s - PubTopic: %s", broker.c_str(), subTopic.c_str(), pubTopic.c_str());
+        //need a reset
+        resetNeeded = true;
+      }
+
       //now writing values to eeprom
       debugD("Writing new config to eeprom");
       EEPROM.put(0,config);
@@ -1053,9 +1172,9 @@ void loop() {
       
       acCommand = {'D', '1',
         (uint8_t)(wsMsg["power"].as<bool>() ? '1' : '0'),
-        (uint8_t) mode,
-        c10_to_setpoint_byte(setpoint),
-        (uint8_t) fan
+        (uint8_t) acValues.mode,
+        c10_to_setpoint_byte(acValues.setpoint),
+        (uint8_t) acValues.fan
       };
 
       //triggering send command
@@ -1065,10 +1184,10 @@ void loop() {
       debugD("Sending AC Mode: %s", mode_to_string(wsMsg["mode"].as<uint8_t>()).c_str());
       
       acCommand = {'D', '1',
-        (uint8_t)(power_on ? '1' : '0'),
+        (uint8_t)(acValues.power_on ? '1' : '0'),
         (uint8_t) modeToChar(wsMsg["mode"].as<uint8_t>()),
-        c10_to_setpoint_byte(setpoint),
-        (uint8_t) fan
+        c10_to_setpoint_byte(acValues.setpoint),
+        (uint8_t) acValues.fan
       };
 
       //triggering send command
@@ -1080,17 +1199,17 @@ void loop() {
         debugD("Turning AC power off.");
         acCommand = {'D', '1',
           (uint8_t)'0',
-          (uint8_t) mode,
-          c10_to_setpoint_byte(setpoint),
-          (uint8_t) fan
+          (uint8_t) acValues.mode,
+          c10_to_setpoint_byte(acValues.setpoint),
+          (uint8_t) acValues.fan
         };
       } else {
         debugD("Turning power on and setting AC Mode: %s", mode_to_string(wsMsg["mode"].as<uint8_t>()).c_str());
         acCommand = {'D', '1',
           (uint8_t)'1',
           (uint8_t) modeToChar(wsMsg["mode"].as<uint8_t>()),
-          c10_to_setpoint_byte(setpoint),
-          (uint8_t) fan
+          c10_to_setpoint_byte(acValues.setpoint),
+          (uint8_t) acValues.fan
         };
       }
 
@@ -1101,9 +1220,9 @@ void loop() {
       debugD("Sending AC Fan: %s", speed_to_string(wsMsg["fan"].as<uint8_t>()).c_str());
       
       acCommand = {'D', '1',
-        (uint8_t)(power_on ? '1' : '0'),
-        (uint8_t) mode,
-        c10_to_setpoint_byte(setpoint),
+        (uint8_t)(acValues.power_on ? '1' : '0'),
+        (uint8_t) acValues.mode,
+        c10_to_setpoint_byte(acValues.setpoint),
         (uint8_t) fanToChar(wsMsg["fan"].as<uint8_t>())
       };
 
@@ -1114,10 +1233,10 @@ void loop() {
       debugD("Sending AC TargetTemp: %i", wsMsg["temp"].as<int16_t>());
       
       acCommand = {'D', '1',
-        (uint8_t)(power_on ? '1' : '0'),
-        (uint8_t) mode,
+        (uint8_t)(acValues.power_on ? '1' : '0'),
+        (uint8_t) acValues.mode,
         c10_to_setpoint_byte(wsMsg["temp"].as<int16_t>() * 10),
-        (uint8_t) fan
+        (uint8_t) acValues.fan
       };
 
       //triggering send command
@@ -1128,8 +1247,8 @@ void loop() {
       debugD("Sending AC Swing Vertical command: %i", wsMsg["swingV"].as<bool>());
 
       acCommand = {'D', '5',
-        (uint8_t) ('0' + (swing_h ? 2 : 0) + (wsMsg["swingV"].as<bool>() ? 1 : 0) + (swing_h && wsMsg["swingV"].as<bool>() ? 4 : 0)),
-        (uint8_t) (wsMsg["swingV"].as<bool>() || swing_h ? '?' : '0'), 
+        (uint8_t) ('0' + (acValues.swing_h ? 2 : 0) + (wsMsg["swingV"].as<bool>() ? 1 : 0) + (acValues.swing_h && wsMsg["swingV"].as<bool>() ? 4 : 0)),
+        (uint8_t) (wsMsg["swingV"].as<bool>() || acValues.swing_h ? '?' : '0'), 
         '0', '0'
       };
 
@@ -1141,8 +1260,8 @@ void loop() {
       debugD("Sending AC Swing Horizontal command: %i", wsMsg["swingH"].as<bool>());
 
       acCommand = {'D', '5',
-        (uint8_t) ('0' + (wsMsg["swingH"].as<bool>() ? 2 : 0) + (swing_v ? 1 : 0) + (wsMsg["swingH"].as<bool>() && swing_v ? 4 : 0)),
-        (uint8_t) (swing_v || wsMsg["swingH"].as<bool>() ? '?' : '0'), 
+        (uint8_t) ('0' + (wsMsg["swingH"].as<bool>() ? 2 : 0) + (acValues.swing_v ? 1 : 0) + (wsMsg["swingH"].as<bool>() && acValues.swing_v ? 4 : 0)),
+        (uint8_t) (acValues.swing_v || wsMsg["swingH"].as<bool>() ? '?' : '0'), 
         '0', '0'
       };
       //triggering send command
@@ -1180,7 +1299,77 @@ void loop() {
   //remote debug
   Debug.handle();
   //mqtt
-  if (mqttClient.connected() || mqttConnect() ){
-    mqttClient.loop();
-  };
+  if ( config.mqttControlEnable == true ){
+    if (mqttClient.connected() || mqttConnect() ){
+      mqttClient.loop();
+    };
+  }
+}
+
+//body for remoteDebug callback function
+void processCmdRemoteDebug(){
+	String lastCmd = Debug.getLastCommand();
+	if (lastCmd == "millis") {
+    //return actual millis
+    debugA("Actual millis: %lu", millis());
+	} else if (lastCmd == "time") {
+    //return actual time:
+    debugA("Device time: %s", daikinTz.dateTime().c_str());
+  } else if (lastCmd == "timestamp") {
+    //return actual time:
+    debugA("Device timestamp: %lld", makeTime(hour(), minute(), second(), day(), month(), year()));
+  } else if (lastCmd == "uptime") {
+    //Return start time and uptime
+    debugA("Returning up time and start time");
+    debugA("Start Time: %s", daikinTz.dateTime(startTimeMsg - daikinTz.getOffset()*60).c_str());
+    int upTime = makeTime(hour(), minute(), second(), day(), month(), year()) - startTimeMsg;
+    debugA("Uptime: %02lu:%02lu:%02lu:%02lu", numberOfDays(upTime), numberOfHours(upTime), numberOfMinutes(upTime), numberOfSeconds(upTime));
+  } else if (lastCmd == "restart") {
+    //return actual time:
+    debugA("Restarting device");
+    ESP.restart();
+  } else if (lastCmd == "resetWiFi") {
+    //resetting WiFi config:
+    debugA("Resetting WiFi Config");
+    WiFi.persistent(true);
+    wifiConnManager.resetSettings();
+    ESP.restart();
+  } else if (lastCmd == "settings") {
+    //dumping system settings:
+    debugA("Dumping system settings");
+    debugA("struct {");
+    debugA("  uint8_t check = %i;", config.check);
+    debugA("  char hostname[32] = %s;", config.hostname);
+    debugA("  //http auth section");
+    debugA("  bool httpAuthEnable = %i;", config.httpAuthEnable);
+    debugA("  char httpUser[32] = %s;", config.httpUser);
+    debugA("  char httpPass[32] = <xxxx>;");
+    debugA("  //http control");
+    debugA("  bool httpControlEnable = %i;", config.httpControlEnable);
+    debugA("  //mqtt control");
+    debugA("  bool mqttControlEnable = %i;", config.mqttControlEnable);
+    debugA("  char mqttUser[32] = %s;", config.mqttUser);
+    debugA("  char mqttPass[32] = <xxxx>;");
+    debugA("  char mqttBroker[64] = %s;", config.mqttBroker);
+    debugA("  char mqttSubTopic[64] = %s;", config.mqttSubTopic);
+    debugA("  char mqttPubTopic[64] = %s;", config.mqttPubTopic);
+    debugA("  uint8_t period = %i;", config.period);
+    debugA("} config;");
+  } else if (lastCmd == "acvalues") {
+    //dumping ac values:
+    debugA("Dumping AC values");
+    debugA("struct {");
+    debugA("  bool power_on = %i;", acValues.power_on);
+    debugA("  uint8_t mode = %s;", mode_to_string(acValues.mode).c_str());
+    debugA("  uint8_t fan = %s;", speed_to_string(acValues.fan).c_str());
+    debugA("  int16_t setpoint = %i;", acValues.setpoint);
+    debugA("  bool swing_v = %i;", acValues.swing_v);
+    debugA("  bool swing_h = %i;", acValues.swing_h);
+    debugA("  int16_t temp_inside = %i;", acValues.temp_inside);
+    debugA("  int16_t temp_outside = %i;", acValues.temp_outside);
+    debugA("  int16_t temp_coil = %i;", acValues.temp_coil);
+    debugA("  uint16_t fan_rpm = %i;", acValues.fan_rpm);
+    debugA("  bool idle = %i;", acValues.idle);
+    debugA("} acValues;");
+  }
 }

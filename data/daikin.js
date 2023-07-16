@@ -54,6 +54,22 @@ $( document ).ready(function() {
 		json_arr["value"] = $(this).prop('checked');
 		ws.send(JSON.stringify(json_arr));
 	});
+	$('#httpControlToggle').change(function() {
+		console.log("Sending httpControl config (" + $(this).prop('checked') + ")");
+		var json_arr = {};
+		json_arr["command"] = "config";
+		json_arr["target"] = "httpControlEnable";
+		json_arr["value"] = $(this).prop('checked');
+		ws.send(JSON.stringify(json_arr));
+	});
+	$('#mqttControlToggle').change(function() {
+		console.log("Sending mqttControl config (" + $(this).prop('checked') + ")");
+		var json_arr = {};
+		json_arr["command"] = "config";
+		json_arr["target"] = "mqttControlEnable";
+		json_arr["value"] = $(this).prop('checked');
+		ws.send(JSON.stringify(json_arr));
+	});
 
 	//data forms
 	$("#httpSecurityForm").on('submit', function(e){
@@ -64,6 +80,27 @@ $( document ).ready(function() {
 		json_arr["target"] = "httpAccessData";
 		json_arr["username"] = $("#httpUsername").val();
 		json_arr["password"] = $("#httpPassword").val();
+		ws.send(JSON.stringify(json_arr));
+	});
+	$("#mqttSecurityForm").on('submit', function(e){
+		e.preventDefault();
+		console.log("Sending MQTT access info: Username: " + $("#mqttUsername").val() + " and Password: --omitted--");
+		var json_arr = {};
+		json_arr["command"] = "config";
+		json_arr["target"] = "mqttAccessData";
+		json_arr["username"] = $("#mqttUsername").val();
+		json_arr["password"] = $("#mqttPassword").val();
+		ws.send(JSON.stringify(json_arr));
+	});
+	$("#mqttDataForm").on('submit', function(e){
+		e.preventDefault();
+		console.log("Sending MQTT config data: Broker: " + $("#mqttBroker").val() + " - PubTopic: " + $("#mqttPubTopic").val() + " - SubTopic: " + $("#mqttSubTopic").val());
+		var json_arr = {};
+		json_arr["command"] = "config";
+		json_arr["target"] = "mqttData";
+		json_arr["broker"] = $("#mqttBroker").val();
+		json_arr["subTopic"] = $("#mqttSubTopic").val();
+		json_arr["pubTopic"] = $("#mqttPubTopic").val();
 		ws.send(JSON.stringify(json_arr));
 	});
 	$("#hostnameForm").on('submit', function(e){
@@ -241,6 +278,25 @@ $( document ).ready(function() {
 				else $('#httpSecurityToggle').bootstrapToggle('off', true);
 				$("#httpUsername").val(data['httpSecurityUser']);
 				
+				//http and mqtt control toggles
+				if ( data['httpControlEnable'] ) $('#httpControlToggle').bootstrapToggle('on', true);
+				else $('#httpControlToggle').bootstrapToggle('off', true);
+				if ( data['mqttControlEnable'] ) $('#mqttControlToggle').bootstrapToggle('on', true);
+				else $('#mqttControlToggle').bootstrapToggle('off', true);
+
+				$("#mqttUsername").val(data['mqttUser']);
+
+				//mqtt data
+				$('#mqttBroker').val(data['mqttBroker']);
+				$('#mqttSubTopic').val(data['mqttSubTopic']);
+				$('#mqttPubTopic').val(data['mqttPubTopic']);
+
+				//reset needed -> show alert
+				if ( data['resetNeeded'] ){
+					$('#restartNeededAlert').show();
+				} else {
+					$('#restartNeededAlert').hide();
+				}
 
 			} else if (data["type"] == "rssi"){
 				$('#wifiRssi').html("(" + data['value'] + "dBm)");

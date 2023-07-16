@@ -210,8 +210,68 @@
 								</div> 
 							</div> 
 							</form>	
-							
-						</div>
+							<br/>
+							<p class="lead">
+								<span class="badge rounded-pill bg-info text-dark" data-toggle="tooltip" data-placement="bottom" title="HTTP control">HTTP control:</span>
+								<input type="checkbox" id="httpControlToggle" data-size="mini" data-toggle="toggle" data-onstyle="primary" data-offstyle="secondary" data-on="<i class='bi-lock'></i>" data-off="<i class='bi-unlock'></i>"  data-style="ios"/>
+								<span class="badge rounded-pill bg-info text-dark" data-toggle="tooltip" data-placement="bottom" title="MQTT control">MQTT control:</span>
+								<input type="checkbox" id="mqttControlToggle" data-size="mini" data-toggle="toggle" data-onstyle="primary" data-offstyle="secondary" data-on="<i class='bi-lock'></i>" data-off="<i class='bi-unlock'></i>"  data-style="ios"/>
+							</p>							
+							<p class="lead">
+							<span class="badge rounded-pill bg-info text-dark" data-toggle="tooltip" data-placement="bottom" title="MQTT access control">MQTT security:</span>
+							</p>
+							<form id="mqttSecurityForm">
+								<div class="form-group row">
+									<div class="input-group input-group-sm">
+										<div class="input-group-text">
+											<i class="bi-person" data-toggle="tooltip"  data-placement="bottom" title="MQTT Username"></i>
+										</div>
+										<input id="mqttUsername" name="mqttUsername" placeholder="insert username" type="text" aria-describedby="mqttUsernameHelpBlock" required="required" class="form-control">
+	
+										<div class="input-group-text">
+											<i class="bi-key" data-toggle="tooltip"  data-placement="bottom" title="MQTT Password"></i>
+										</div>
+										<input id="mqttPassword" name="mqttPassword" placeholder="insert password" type="password" aria-describedby="mqttPasswordHelpBlock" required="required" class="form-control">
+										<div class="input-group-append">
+											<button name="submit" type="submit" class="btn btn-secondary btn-sm">Set</button>
+										</div>
+									</div> 
+								</div> 
+								</form>	
+								<br/>
+								<p class="lead">
+								<span class="badge rounded-pill bg-info text-dark" data-toggle="tooltip" data-placement="bottom" title="MQTT config data">MQTT data:</span>
+								</p>
+								<form id="mqttDataForm">
+									<div class="form-group row">
+										<div class="input-group input-group-sm">
+											<div class="input-group-text">
+												<i class="bi-box-arrow-in-down" data-toggle="tooltip"  data-placement="bottom" title="MQTT Sub Topic"></i>
+											</div>
+											<input id="mqttSubTopic" name="mqttSubTopic" placeholder="insert mqtt sub topic" type="text" aria-describedby="mqttSubTopicHelpBlock" required="required" class="form-control">
+										</div>
+									</div>
+									<div class="form-group row">
+										<div class="input-group input-group-sm">
+											<div class="input-group-text">
+												<i class="bi-box-arrow-in-up" data-toggle="tooltip"  data-placement="bottom" title="MQTT Pub Topic"></i>
+											</div>
+											<input id="mqttPubTopic" name="mqttPubTopic" placeholder="insert mqtt pub topic" type="text" aria-describedby="mqttPubTopicHelpBlock" required="required" class="form-control">
+										</div>
+									</div>
+									<div class="form-group row">
+										<div class="input-group input-group-sm">
+											<div class="input-group-text">
+												<i class="bi-pc-display" data-toggle="tooltip"  data-placement="bottom" title="MQTT Broker"></i>
+											</div>
+											<input id="mqttBroker" name="mqttBroker" placeholder="insert mqtt broker" type="text" aria-describedby="mqttBrokerHelpBlock" required="required" class="form-control">
+											<div class="input-group-append">
+												<button name="submit" type="submit" class="btn btn-secondary btn-sm">Set</button>
+											</div>
+										</div> 
+									</div> 
+									</form>	
+								</div>
 					</div>
 				</div>
 				<div class="col">
@@ -244,6 +304,10 @@
 								&nbsp;
 								<a href="#" class="btn btn-dark btn-sm" id="cmdWifiRst" role="button" data-toggle="tooltip" data-placement="bottom" title="WARNING! Deletes WiFi credentials!"><i class="bi-wifi-off"></i></a>
 								&nbsp;
+							</div>
+							<br/>
+							<div class="alert alert-warning collapse" role="alert" id="restartNeededAlert">
+								Relevant config changed - A device reset is needed
 							</div>
 							</p>
 						</div>
