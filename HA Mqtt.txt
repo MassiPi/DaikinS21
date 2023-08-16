@@ -3,6 +3,25 @@ mqtt
   climate:
     - name: "Living AC"
       icon: mdi:air-conditioner
+      action_topic: "your/data/topic"
+      action_template: >-
+        {% if value_json.power == false %}
+            off
+        {% elif value_json.mode == 54 %}
+            fan
+        {% elif not states('binary_sensor.daikincompressor') %}
+            idle
+        {% elif value_json.mode == 50 %}
+            drying
+        {% elif value_json.mode == 51 %}
+            cooling
+        {% elif value_json.mode == 52 %}
+            heating
+        {% elif (value_json.mode == 49 or value_json.mode == 48) and (value_json.temp_inside / 10) >= (value_json.setpoint / 10) %}
+            cooling
+        {% elif (value_json.mode == 49 or value_json.mode == 48) and (value_json.temp_inside / 10) < (value_json.setpoint / 10) %}
+            heating
+        {% endif %} 
       power_command_topic: "your/command/topic"
       power_command_template: >-
         {% if value == "ON" %}
