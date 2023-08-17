@@ -1,5 +1,12 @@
-#daikin AC over mqtt
 mqtt
+  #boolean sensor for Daikin compressor state
+  binary_sensor:
+    - name: "DaikinCompressor"
+      state_topic: "your/data/topic"
+      value_template: "{{ value_json.idle }}"
+      payload_on: false
+      payload_off: true
+  #daikin AC over mqtt
   climate:
     - name: "Living AC"
       icon: mdi:air-conditioner
@@ -9,7 +16,7 @@ mqtt
             off
         {% elif value_json.mode == 54 %}
             fan
-        {% elif not states('binary_sensor.daikincompressor') %}
+        {% elif is_state('binary_sensor.daikincompressor', 'off') %}
             idle
         {% elif value_json.mode == 50 %}
             drying
