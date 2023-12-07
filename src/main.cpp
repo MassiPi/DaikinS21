@@ -186,6 +186,7 @@ struct {
   char mqttUser[32];   //mqtt user
   char mqttPass[32];   //mqtt pass. Could be stored crypted..
   char mqttBroker[64];   //mqtt broker
+  char mqttTestamentTopic[64];
   char mqttSubTopic[64];   //mqtt topic to subscribe (receive commands)
   char mqttPubTopic[64];   //mqtt topic to publish data to
   
@@ -214,6 +215,7 @@ void sendConfigWs(AsyncWebSocketClient * client){
   root["mqttControlEnable"] = config.mqttControlEnable;
   root["mqttUser"] = config.mqttUser;
   root["mqttBroker"] = config.mqttBroker;
+  root["mqttTestamentTopic"] = config.mqttTestamentTopic;
   root["mqttSubTopic"] = config.mqttSubTopic;
   root["mqttPubTopic"] = config.mqttPubTopic;
   root["resetNeeded"] = resetNeeded;
@@ -489,14 +491,14 @@ uint32_t mqttConnAttempt = 0; //don't want tons of useless connections attemps
 bool mqttConnect() {
   // Reconnect to MQTT
   if (WiFi.status() == WL_CONNECTED) {
-    // Create a random client ID
-    String mqttClientId = "ESP8266Client-";
-    mqttClientId += String(random(0xffff), HEX);
     // Attempt to connect
     if ( millis() - mqttConnAttempt > 1000UL ){
-      if (mqttClient.connect(mqttClientId.c_str(), config.mqttUser, config.mqttPass)) {
+      const char* sysNotAvailable = "offline";
+      if (mqttClient.connect(config.hostname, config.mqttUser, config.mqttPass, config.mqttTestamentTopic, 0, true, sysNotAvailable)) {
         debugD("Connected to MQTT broker");
         // ... and resubscribe
+        const char* sysAvailable = "online";
+        mqttClient.publish(config.mqttTestamentTopic, sysAvailable, true);
         mqttClient.subscribe(config.mqttSubTopic);
         return true;
       } else {
@@ -526,9 +528,9 @@ void setup() {
   EEPROM.get(0,config);
 
   //manual fix
-  if ( config.check != 99 ){ //used for fists config setup
+  if ( config.check != 111 ){ //used for fists config setup
     String temp;
-    config.check = 99; 
+    config.check = 111; 
     //hostname
     strcpy(config.hostname, "myDaikin");
     config.httpAuthEnable = false;
@@ -541,6 +543,7 @@ void setup() {
     strcpy(config.mqttUser, "user");
     strcpy(config.mqttPass, "pass");
     strcpy(config.mqttBroker, "broker");
+    strcpy(config.mqttTestamentTopic, "testamentTopic");
     strcpy(config.mqttSubTopic, "subTopic");
     strcpy(config.mqttPubTopic, "pubTopic");
   
@@ -1143,16 +1146,18 @@ void loop() {
         resetNeeded = true;
       }
       if ( wsMsg["target"].as<String>() == "mqttData" ){
-        String broker,subTopic, pubTopic;
+        String broker, testamentTopic, subTopic, pubTopic;
         broker = wsMsg["broker"].as<String>();
+        testamentTopic = wsMsg["testamentTopic"].as<String>();    
         subTopic = wsMsg["subTopic"].as<String>();    
         pubTopic = wsMsg["pubTopic"].as<String>();    
 
         broker.toCharArray(config.mqttBroker, 64);
+        testamentTopic.toCharArray(config.mqttTestamentTopic, 64);
         subTopic.toCharArray(config.mqttSubTopic, 64);
         pubTopic.toCharArray(config.mqttPubTopic, 64);
 
-        debugD("Updating Mqtt data: Broker: %s - SubTopic: %s - PubTopic: %s", broker.c_str(), subTopic.c_str(), pubTopic.c_str());
+        debugD("Updating Mqtt data: Broker: %s - SubTopic: %s - PubTopic: %s - TestamentTopic: %s", broker.c_str(), subTopic.c_str(), pubTopic.c_str(), testamentTopic.c_str());
         //need a reset
         resetNeeded = true;
       }
@@ -1351,6 +1356,7 @@ void processCmdRemoteDebug(){
     debugA("  char mqttUser[32] = %s;", config.mqttUser);
     debugA("  char mqttPass[32] = <xxxx>;");
     debugA("  char mqttBroker[64] = %s;", config.mqttBroker);
+    debugA("  char mqttTestamentTopic[64] = %s;", config.mqttTestamentTopic);
     debugA("  char mqttSubTopic[64] = %s;", config.mqttSubTopic);
     debugA("  char mqttPubTopic[64] = %s;", config.mqttPubTopic);
     debugA("  uint8_t period = %i;", config.period);

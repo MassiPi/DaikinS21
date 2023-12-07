@@ -94,13 +94,14 @@ $( document ).ready(function() {
 	});
 	$("#mqttDataForm").on('submit', function(e){
 		e.preventDefault();
-		console.log("Sending MQTT config data: Broker: " + $("#mqttBroker").val() + " - PubTopic: " + $("#mqttPubTopic").val() + " - SubTopic: " + $("#mqttSubTopic").val());
+		console.log("Sending MQTT config data: Broker: " + $("#mqttBroker").val() + " - PubTopic: " + $("#mqttPubTopic").val() + " - SubTopic: " + $("#mqttSubTopic").val() + " - TestamentTopic: " + $("#mqttTestamentTopic").val());
 		var json_arr = {};
 		json_arr["command"] = "config";
 		json_arr["target"] = "mqttData";
 		json_arr["broker"] = $("#mqttBroker").val();
 		json_arr["subTopic"] = $("#mqttSubTopic").val();
 		json_arr["pubTopic"] = $("#mqttPubTopic").val();
+		json_arr["testamentTopic"] = $("#mqttTestamentTopic").val();
 		ws.send(JSON.stringify(json_arr));
 	});
 	$("#hostnameForm").on('submit', function(e){
@@ -290,7 +291,8 @@ $( document ).ready(function() {
 				$('#mqttBroker').val(data['mqttBroker']);
 				$('#mqttSubTopic').val(data['mqttSubTopic']);
 				$('#mqttPubTopic').val(data['mqttPubTopic']);
-
+				$('#mqttTestamentTopic').val(data['mqttTestamentTopic']);
+				
 				//reset needed -> show alert
 				if ( data['resetNeeded'] ){
 					$('#restartNeededAlert').show();
