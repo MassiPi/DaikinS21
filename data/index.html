@@ -93,19 +93,22 @@
 										<label class="btn btn-outline-dark" for="fanAuto"  title="Auto" data-toggle="tooltip"><i style="font-size: 1.5rem;">A</i></label>
 									  
 										<input type="radio" class="btn-check" name="fan" id="fan1" autocomplete="off" value="51">
-										<label class="btn btn-outline-dark" for="fan1"  title="1/5" data-toggle="tooltip"><i class="bi bi-1-square" style="font-size: 1.5rem;"></i></label>
+										<label class="btn btn-outline-dark fanSpeedBtn" for="fan1"  title="1/5" data-toggle="tooltip"><i class="bi bi-1-square" style="font-size: 1.5rem;"></i></label>
 									  
 										<input type="radio" class="btn-check" name="fan" id="fan2" autocomplete="off" value="52">
-										<label class="btn btn-outline-dark" for="fan2"  title="2/5" data-toggle="tooltip"><i class="bi bi-2-square" style="font-size: 1.5rem;"></i></label>
+										<label class="btn btn-outline-dark fanSpeedBtn" for="fan2"  title="2/5" data-toggle="tooltip"><i class="bi bi-2-square" style="font-size: 1.5rem;"></i></label>
 									  
 										<input type="radio" class="btn-check" name="fan" id="fan3" autocomplete="off" value="53">
-										<label class="btn btn-outline-dark" for="fan3"  title="3/5" data-toggle="tooltip"><i class="bi bi-3-square" style="font-size: 1.5rem;"></i></label>
+										<label class="btn btn-outline-dark fanSpeedBtn" for="fan3"  title="3/5" data-toggle="tooltip"><i class="bi bi-3-square" style="font-size: 1.5rem;"></i></label>
 									  
 										<input type="radio" class="btn-check" name="fan" id="fan4" autocomplete="off" value="54">
-										<label class="btn btn-outline-dark" for="fan4"  title="4/5" data-toggle="tooltip"><i class="bi bi-4-square" style="font-size: 1.5rem;"></i></label>
+										<label class="btn btn-outline-dark fanSpeedBtn" for="fan4"  title="4/5" data-toggle="tooltip"><i class="bi bi-4-square" style="font-size: 1.5rem;"></i></label>
 
 										<input type="radio" class="btn-check" name="fan" id="fan5" autocomplete="off" value="55">
-										<label class="btn btn-outline-dark" for="fan5"  title="5/5" data-toggle="tooltip"><i class="bi bi-5-square" style="font-size: 1.5rem;"></i></label>
+										<label class="btn btn-outline-dark fanSpeedBtn" for="fan5"  title="5/5" data-toggle="tooltip"><i class="bi bi-5-square" style="font-size: 1.5rem;"></i></label>
+
+										<input type="radio" class="btn-check" name="fan" id="fanNight" autocomplete="off" value="66">
+										<label class="btn btn-outline-dark fanSpeedBtn" for="fanNight"  title="Night" data-toggle="tooltip"><i class="bi bi-moon-stars" style="font-size: 1.5rem;"></i></label>
 									</div>
 								</div>
 							&nbsp;
@@ -116,13 +119,12 @@
 
 									<div class="btn-group" role="group">
 										<input type="checkbox" class="btn-check" id="oscv-button" autocomplete="off">
-										<label class="btn btn-outline-dark" for="oscv-button"  title="Vertical Oscillation" data-toggle="tooltip"><i class="bi bi-arrow-down-up" style="font-size:1.5rem;"></i></label>
-									  
+										<label class="btn btn-outline-dark" for="oscv-button" title="Vertical Oscillation" data-toggle="tooltip"><i class="bi bi-arrow-down-up" style="font-size:1.5rem;"></i></label>
 										<input type="checkbox" class="btn-check" id="osch-button" autocomplete="off">
-										<label class="btn btn-outline-dark" for="osch-button"  title="Vertical Oscillation" data-toggle="tooltip"><i class="bi bi-arrow-left-right" style="font-size:1.5rem;"></i></label>
+										<label class="btn btn-outline-dark" for="osch-button" title="Horizontal Oscillation" data-toggle="tooltip"><i class="bi bi-arrow-left-right" style="font-size:1.5rem;"></i></label>
 										
 									</div>
-									&nbsp;&nbsp;
+									&nbsp;
 									<button type="button" class="btn btn-dark disabled" title="Fan speed" data-toggle="tooltip" style="pointer-events: auto;"><i class="bi bi-fan" style="font-size: 1.5rem;"></i></button>
 									<button type="button" class="btn btn-light" id="fanSpeed" style="font-size:1.5rem;" disabled>--</button>
 								</div>
@@ -145,7 +147,7 @@
 										<button type="button" class="btn btn-dark disabled" title="Coil" data-toggle="tooltip" style="pointer-events: auto;"><i class="bi bi-water" style="font-size: 1.5rem;"></i></button>
 										<button type="button" class="btn btn-light" id="coilTemp" style="font-size:1.5rem;" disabled>--°C</button>
 										<button type="button" class="btn btn-dark disabled" title="Compressor" data-toggle="tooltip" style="pointer-events: auto;"><i class="bi bi-house-gear" style="font-size: 1.5rem;"></i></button>
-										<button type="button" class="btn btn-light disabled" data-toggle="tooltip" style="pointer-events: auto;" id="compressor">&nbsp;&nbsp;&nbsp;&nbsp;</button>
+										<button type="button" class="btn btn-light disabled" data-toggle="tooltip" style="font-size:1.5rem;" id="compressor">&nbsp;&nbsp;&nbsp;&nbsp;</button>
 									</div>
 								</div>
 							&nbsp;

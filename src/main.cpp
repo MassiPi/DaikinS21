@@ -20,6 +20,15 @@ Consequents modification to code to manage conditional enabling of reporting cha
 Added some debugging commands for remoteDebug
 
 Also moved under struct the local state vars, for cleaner code
+
+1.2
+- added availability topic for HA integration
+
+1.3
+- added compressor frequency - in code and in HA through a specific sensor - to have a proxy of power consumption. In the web interface different color is shown based on frequency
+- using different commands for target fan speed - split for 9000btu and 12000 btu units - the web interface shows the fan speed selected by auto mode (yes, i was getting bored lol)
+- added night mode management for fan, in code, in web interface and in HA
+
 */
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
@@ -53,7 +62,7 @@ const char* apname = "WiFi-daikin"; //name used for config AP when wifi is not f
 
 //ac variables
 const uint8_t modes[6] = {'1','2','3','4','6'}; // auto, dry, cool, heat, fan -> in ASCII 49 50 51 52 54
-const uint8_t speeds[6] = {'A','3','4','5','6','7'}; //auto and speed from 1 to 5 -> in ASCII 65 51 52 53 54 55
+const uint8_t speeds[7] = {'A','3','4','5','6','7','B'}; //auto, speed from 1 to 5 and Night -> in ASCII 65 51 52 53 54 55 66
 std::uint8_t modeToChar (uint8_t mode){
   switch (mode){
     case 49:
@@ -84,6 +93,8 @@ std::uint8_t fanToChar (uint8_t speed){
       return speeds[4];
     case 55:
       return speeds[5];
+    case 66:
+      return speeds[6];
     default:
       return 0;
   }
@@ -111,6 +122,8 @@ std::string speed_to_string(uint8_t mode) {
   switch (mode) {
     case 'A':
       return "Auto";
+    case 'B':
+      return "Night";
     case '3':
       return "1";
     case '4':
@@ -143,12 +156,16 @@ struct {
   int16_t temp_inside = 0;
   int16_t temp_outside = 0;
   int16_t temp_coil = 0;
+  uint16_t target_fan_rpm = 0;
   uint16_t fan_rpm = 0;
   bool idle = true;
+  uint8_t compressor_freq = 0;
+  uint8_t target_angle = 0;
+  uint8_t angle = 0;
 } acValues;
 
 //variable and consts for states-machine
-const std::vector<std::string> acQueries = {"F1", "F5", "RH", "RI", "Ra", "RL", "Rd"}; //list of good used ac queries
+const std::vector<std::string> acQueries = {"F1", "F5", "RH", "RI", "Ra", "RL", "Rd", "RK", "RM", "RN", "RG"}; //list of good used ac queries
 uint8_t state = 0, cmdState = 0; //machine state indexes
 uint8_t acQuery = 0; //ac query index
 uint32_t updateStartTime = 0, serialTimeoutStart = 0, waitTimer = 0; //used to calculate update time
@@ -270,8 +287,12 @@ void sendSensorDataWs(AsyncWebSocketClient * client){
   root["temp_inside"] = acValues.temp_inside;
   root["temp_outside"] = acValues.temp_outside;
   root["temp_coil"] = acValues.temp_coil;
+  root["target_fan_rpm"] = acValues.target_fan_rpm;
   root["fan_rpm"] = acValues.fan_rpm;
   root["idle"] = acValues.idle;
+  root["compressor_freq"] = acValues.compressor_freq;
+  root["target_angle"] = acValues.target_angle;
+  root["angle"] = acValues.angle;
 
   size_t len = measureJson(root);
   AsyncWebSocketMessageBuffer * buffer = ws.makeBuffer(len); //  creates a buffer (len + 1) for you.
@@ -467,14 +488,16 @@ void write_frame(std::vector<uint8_t> frame) {
 
 void dumpState() {
   debugI("** BEGIN STATE *****************************");
-  debugI("  Power: %i", acValues.power_on);
-  debugI("   Mode: %s (%s)", mode_to_string(acValues.mode).c_str(), acValues.idle ? "idle" : "active");
-  debugI(" Target: %.1f C", acValues.setpoint / 10.0);
-  debugI("    Fan: %s (%d rpm)", speed_to_string(acValues.fan).c_str(), acValues.fan_rpm);
-  debugI("  Swing: H:%i V:%i", acValues.swing_h, acValues.swing_v);
-  debugI(" Inside: %.1f C", acValues.temp_inside / 10.0);
-  debugI("Outside: %.1f C", acValues.temp_outside / 10.0);
-  debugI("   Coil: %.1f C", acValues.temp_coil / 10.0);
+  debugI("     Power: %i", acValues.power_on);
+  debugI("      Mode: %s", mode_to_string(acValues.mode).c_str());
+  debugI("    Target: %.1f C", acValues.setpoint / 10.0);
+  debugI("       Fan: %s (Target: %d rpm - actual: %d rpm)", speed_to_string(acValues.fan).c_str(), acValues.target_fan_rpm, acValues.fan_rpm);
+  debugI("     Swing: H:%i V:%i", acValues.swing_h, acValues.swing_v);
+  debugI("    Inside: %.1f C", acValues.temp_inside / 10.0);
+  debugI("   Outside: %.1f C", acValues.temp_outside / 10.0);
+  debugI("      Coil: %.1f C", acValues.temp_coil / 10.0);
+  debugI("       Lid: Target: %d° - Actual: %d°", acValues.target_angle, acValues.angle);
+  debugI("Compressor: %s (%d Hz)", acValues.idle ? "idle" : "active", acValues.compressor_freq);
   debugI("** END STATE *****************************");
 }
 
@@ -520,6 +543,7 @@ void processCmdRemoteDebug();
 
 void setup() {
   Serial.begin(115200);
+  daikinSWSerial.enableTxGPIOOpenDrain(true);
   daikinSWSerial.begin(2400, EspSoftwareSerial::SWSERIAL_8E2, D7, D6, false);
   daikinSWSerial.setTimeout(1000);
   // need to store config data in eeprom
@@ -614,7 +638,6 @@ void setup() {
 	Debug.setCallBackProjectCmds(&processCmdRemoteDebug);
 
   Serial.print("Setting up timeserver");
-  configTime("CET-1CEST,M3.5.0/2,M10.5.0/3", "pool.ntp.org");
   if (!ezt::waitForSync(10)){
     Serial.println("Can't sync timeserver");
   }
@@ -712,8 +735,12 @@ void setup() {
         root["temp_inside"] = acValues.temp_inside;
         root["temp_outside"] = acValues.temp_outside;
         root["temp_coil"] = acValues.temp_coil;
+        root["target_fan_rpm"] = acValues.target_fan_rpm;
         root["fan_rpm"] = acValues.fan_rpm;
         root["idle"] = acValues.idle;
+        root["compressor_freq"] = acValues.compressor_freq;
+        root["target_angle"] = acValues.target_angle;
+        root["angle"] = acValues.angle;
         serializeJson(root, *response);
         request->send(response);
     }).setFilter(ON_STA_FILTER);
@@ -799,8 +826,12 @@ void loop() {
               root["temp_inside"] = acValues.temp_inside;
               root["temp_outside"] = acValues.temp_outside;
               root["temp_coil"] = acValues.temp_coil;
+              root["target_fan_rpm"] = acValues.target_fan_rpm;
               root["fan_rpm"] = acValues.fan_rpm;
               root["idle"] = acValues.idle;
+              root["compressor_freq"] = acValues.compressor_freq;
+              root["target_angle"] = acValues.target_angle;
+              root["angle"] = acValues.angle;
             
               char buffer[512];
               serializeJson(root, buffer);
@@ -905,11 +936,12 @@ void loop() {
                 acValues.mode = frameBytes[3];
                 valueChanged = true;
               }
-              if ( acValues.fan != (uint8_t)frameBytes[5] ){
-                debugD("Fan changed from %i to %i", acValues.fan, (uint8_t)frameBytes[5]);
-                acValues.fan = frameBytes[5];
-                valueChanged = true;
-              }
+              //FAN is taken from SG that has also night setting
+              //if ( acValues.fan != (uint8_t)frameBytes[5] && acValues.fan != 66 ){
+              //  debugD("Fan changed from %i to %i", acValues.fan, (uint8_t)frameBytes[5]);
+              //  acValues.fan = frameBytes[5];
+              //  valueChanged = true;
+              //}
               if ( acValues.setpoint != (int16_t)((frameBytes[4] - 28) * 5) ){
                 //only valid if mode is different from DRY and FAN
                 if ( acValues.mode != 50 && acValues.mode != 54 ){
@@ -918,7 +950,8 @@ void loop() {
                   valueChanged = true;
                 }
               }
-              debugD("Power is %i, mode is %s, setpoint is %i, fan is %s", acValues.power_on, mode_to_string(acValues.mode).c_str(), acValues.setpoint, speed_to_string(acValues.fan).c_str());
+              //debugD("Power is %i, mode is %s, setpoint is %i, fan is %s", acValues.power_on, mode_to_string(acValues.mode).c_str(), acValues.setpoint, speed_to_string(acValues.fan).c_str());
+              debugD("Power is %i, mode is %s, setpoint is %i", acValues.power_on, mode_to_string(acValues.mode).c_str(), acValues.setpoint);
               break;
             case '5':  // F5 -> G5 -- Swing state
               if ( acValues.swing_v != (bool)(frameBytes[2] & 1) ){
@@ -932,6 +965,9 @@ void loop() {
                 valueChanged = true;
               }
               debugD("V-Swing is %i, H-Swing is %i", acValues.swing_v, acValues.swing_h);
+              break;
+            case '3':  // F3 -> G3 -- Timer
+              debugD("Timer  is %i, ON timer %ih, OFF timer %ih", (frameBytes[2] - '0'), ((frameBytes[3] - 0x30)/6), ((frameBytes[4] - 0x30)/6));
               break;
           }
           break;
@@ -965,7 +1001,6 @@ void loop() {
               if ( acValues.fan_rpm != (bytes_to_num(&frameBytes[2], frameBytes.size()-2) * 10) ){
                 debugD("Fan RPM changed from %i to %i", acValues.fan_rpm, (bytes_to_num(&frameBytes[2], frameBytes.size()-2) * 10));
                 acValues.fan_rpm = bytes_to_num(&frameBytes[2], frameBytes.size()-2) * 10;
-                valueChanged = true;
               }
               debugD("Fan rpm is %i", acValues.fan_rpm);
               break;
@@ -975,6 +1010,64 @@ void loop() {
                 acValues.idle = (frameBytes[2] == '0' && frameBytes[3] == '0' && frameBytes[4] == '0');
                 valueChanged = true;
               }
+              if ( acValues.compressor_freq != bytes_to_num(&frameBytes[2], 3) ){
+                debugD("Compressor frequency changed from %i to %i", acValues.compressor_freq, bytes_to_num(&frameBytes[2], 3));
+                acValues.compressor_freq = bytes_to_num(&frameBytes[2], 3);
+                valueChanged = true;
+              }
+              debugD("Idle is %i. Compressor frequency is %iHz", acValues.idle, acValues.compressor_freq);
+              break;
+            case 'K':  // Fan speed target
+              if ( acValues.target_fan_rpm != bytes_to_num(&frameBytes[2], 3) * 10 ){
+                debugD("Target fan rpm changed from %i to %i", acValues.target_fan_rpm, bytes_to_num(&frameBytes[2], 3) * 10);
+                acValues.target_fan_rpm = bytes_to_num(&frameBytes[2], 3) * 10;
+                valueChanged = true;
+              }
+              debugD("Target fan rpm is %i", acValues.target_fan_rpm);
+              break;
+            case 'M':  // Target angle
+              if ( acValues.target_angle != bytes_to_num(&frameBytes[2], 3) ){
+                debugD("Target angle changed from %i to %i", acValues.target_angle, bytes_to_num(&frameBytes[2], 3));
+                acValues.target_angle = bytes_to_num(&frameBytes[2], 3);
+                valueChanged = true;
+              }                
+              debugD("Target angle is %i", acValues.target_angle);
+              break;
+            case 'N':  // Angle
+              if ( acValues.angle != bytes_to_num(&frameBytes[2], 3) ){
+                debugD("Angle changed from %i to %i", acValues.angle, bytes_to_num(&frameBytes[2], 3));
+                acValues.angle = bytes_to_num(&frameBytes[2], 3);
+              }
+              debugD("Angle is %i", acValues.angle);
+              break;
+            case 'G':  // Fan speed with night mode.
+              if ( acValues.fan != (uint8_t)frameBytes[2] ){
+                debugD("Fan changed from %i to %i", acValues.fan, (uint8_t)frameBytes[2]);
+                acValues.fan = frameBytes[2];
+                valueChanged = true;
+              }
+              debugD("Fan is %s", speed_to_string(acValues.fan).c_str());
+              break;
+            case 'g':  // Compressor state boolean.
+              debugD("Compressor state is %d", frameBytes[2] - '0');
+              break;
+            case 'A':  // Power state boolean.
+              debugD("Power state is %d", frameBytes[2] - '0');
+              break;
+            case 'B':  // Mode.
+              debugD("Mode is %d", frameBytes[2] - '0');
+              break;
+            case 'D':  // Timer on minutes.
+              debugD("Timer on minutes %d", bytes_to_num(&frameBytes[2], 3)*10);
+              break;
+            case 'E':  // Timer off minutes.
+              debugD("Timer off minutes %d", bytes_to_num(&frameBytes[2], 3)*10);
+              break;
+            case 'F':  // Swing Mode.
+              debugD("Swing Mode is %d", frameBytes[2] - '0');
+              break;
+            case 'X':  // Target temp
+              debugD("Target temp %i", bytes_to_num(&frameBytes[2], frameBytes.size()-2));
               break;
             default:
               if (frameBytes.size() > 5) {
@@ -1374,8 +1467,12 @@ void processCmdRemoteDebug(){
     debugA("  int16_t temp_inside = %i;", acValues.temp_inside);
     debugA("  int16_t temp_outside = %i;", acValues.temp_outside);
     debugA("  int16_t temp_coil = %i;", acValues.temp_coil);
+    debugA("  uint16_t target_fan_rpm = %i;", acValues.target_fan_rpm);
     debugA("  uint16_t fan_rpm = %i;", acValues.fan_rpm);
     debugA("  bool idle = %i;", acValues.idle);
+    debugA("  uint8_t compressor_freq = %i;", acValues.compressor_freq);
+    debugA("  uint8_t target_angle = %i;", acValues.target_angle);
+    debugA("  uint8_t angle = %i;", acValues.angle);
     debugA("} acValues;");
   }
 }

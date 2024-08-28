@@ -9,6 +9,8 @@ I'm controlling three old FTXSxxG splits
 - mini breadboard
 - 4 dupont cables male-female
 
+You can also get (lastly, i did) these cables to ease connection: aliexpress.com/item/1005005465484217.html
+
 ### Used software
 this is a platformio project.
 

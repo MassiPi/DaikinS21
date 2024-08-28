@@ -257,14 +257,63 @@ $( document ).ready(function() {
 					$('.target-temp').text( Number(data['setpoint']/10.0) + "°C");
 				}
 				$("input[type='radio'][name='fan'][value='" + data["fan"] + "']").prop("checked", "true");
-
+				//when fan is auto, color fan button correponding the target speed
+				if ( data["fan"] == 65 ){
+					//clean borders
+					$('.fanSpeedBtn').removeClass('btn-outline-success').addClass('btn-outline-dark');
+					switch (data["target_fan_rpm"]){
+						case 800: //12000btu
+						case 750: //9000btu
+							//speed 1
+							$("label[for='fan1']").removeClass('btn-outline-dark').addClass('btn-outline-success');							
+							break;
+						case 940: //12000btu
+						case 850: //9000btu
+							//speed 2
+							$("label[for='fan2']").removeClass('btn-outline-dark').addClass('btn-outline-success');							
+							break;
+						case 1080: //12000btu
+						case 950: //9000btu
+							//speed 3
+							$("label[for='fan3']").removeClass('btn-outline-dark').addClass('btn-outline-success');							
+							break;
+						case 1220: //12000btu
+						case 1050: //9000btu
+							//speed 4
+							$("label[for='fan4']").removeClass('btn-outline-dark').addClass('btn-outline-success');							
+							break;
+						case 1370: //12000btu
+						case 1150: //9000btu
+							//speed 5
+							$("label[for='fan5']").removeClass('btn-outline-dark').addClass('btn-outline-success');							
+							break;
+					}
+				} else {
+					//reset colors
+					$('.fanSpeedBtn').removeClass('btn-outline-success').addClass('btn-outline-dark');
+				}
 				$('#inTemp').text(data['temp_inside']/10.0 + "°C");
 				$('#outTemp').text(data['temp_outside']/10.0 + "°C");
 				$('#coilTemp').text(data['temp_coil']/10.0 + "°C");
-				$('#fanSpeed').text(data['fan_rpm'] + " rpm");
+				$('#fanSpeed').text(data['target_fan_rpm'] + " rpm");
+
+				//$("label[for='oscv-button']").prop('title', data['target_angle'] + "°");
+				$("label[for='oscv-button']").attr('data-bs-original-title', 'Vertical Oscillation (' + data['target_angle'] + '°)');
 				
-				if ( data["idle"] == true ) $("#compressor").removeClass('btn-warning').addClass('btn-light');
-				else $("#compressor").removeClass('btn-light').addClass('btn-warning');
+				if ( data["idle"] == true ){
+					$("#compressor").removeClass('btn-warning').addClass('btn-light');
+					$("#compressor").html("&nbsp;&nbsp;&nbsp;&nbsp;");
+				} else {
+					//color based on frequency: under 40Hz it's green, under 80Hz is yellow, over is red
+					if ( data['compressor_freq'] < 40 ){
+						$("#compressor").removeClass('btn-light btn-warning btn-danger').addClass('btn-success');
+					} else if ( data['compressor_freq'] < 80 ){
+						$("#compressor").removeClass('btn-light btn-success btn-danger').addClass('btn-warning');
+					} else {
+						$("#compressor").removeClass('btn-light btn-warning btn-success').addClass('btn-danger');
+					}
+					$("#compressor").text(data['compressor_freq'] + "Hz");
+				}
 
 				
 			} else if (data["type"] == "config"){

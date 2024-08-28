@@ -62,10 +62,12 @@ mqtt
             {"command":"acHaMode","mode":54}{{'\0'}}
         {% endif %}
       fan_mode_state_topic: "your/data/topic"
-      fan_modes: ["auto", "Speed 1", "Speed 2", "Speed 3", "Speed 4", "Speed 5"]
+      fan_modes: ["Auto", "Night", "Speed 1", "Speed 2", "Speed 3", "Speed 4", "Speed 5"]
       fan_mode_state_template: >-
         {% if value_json.fan == 65 %}
-            auto
+            Auto
+        {% elif value_json.fan == 66 %}
+            Night
         {% elif value_json.fan == 51 %}
             Speed 1
         {% elif value_json.fan == 52 %}
@@ -79,8 +81,10 @@ mqtt
         {% endif %}
       fan_mode_command_topic: "your/command/topic"
       fan_mode_command_template: >-
-        {% if value == "auto" %}
+        {% if value == "Auto" %}
             {"command":"acFan","fan":65}{{'\0'}}
+        {% elif value == "Night" %}
+            {"command":"acFan","fan":66}{{'\0'}}
         {% elif value == "Speed 1" %}
             {"command":"acFan","fan":51}{{'\0'}}
         {% elif value == "Speed 2" %}
@@ -131,3 +135,22 @@ mqtt
             "Coil Temp": {{value_json.temp_coil / 10}},
             "Fan RPM": {{value_json.fan_rpm}}
           }
+  sensor:
+    #sensor of Daikin compressor frequency
+    - name: "Daikin Compressor Frequency"
+      state_topic: "your/data/topic"
+      value_template: "{{ value_json.compressor_freq }}"
+      availability_topic: "your/availability/topic"
+      device_class: "Frequency"
+      state_class: "measurement"
+      unit_of_measurement: "Hz"
+      suggested_display_precision: 0
+
+  #boolean sensor for Daikin compressor state
+  binary_sensor:
+    - name: "DaikinCompressor"
+      state_topic: "your/data/topic"
+      value_template: "{{ value_json.idle }}"
+      payload_on: false
+      payload_off: true
+      availability_topic: "your/availability/topic"
