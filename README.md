@@ -1,7 +1,7 @@
 ## A project to control Daikin split through S21 socket.
 
 ### Daikin Model
-I'm controlling three old FTXSxxG splits
+I'm controlling three old FTXSxxG splits. Probably this works mostly with the same units as [Faikin](https://github.com/revk/ESP32-Faikin) does.
 
 ### Used hardware (under 10$):
 - esp8266mini
@@ -24,7 +24,51 @@ On my units the S21 port is:<br/>
 Luckily, RX port accepts 3.3V levels so i did not need a level shifter.<br/>
 I used D6 and D7 as serial port pins for the ESP8266.
 
-### Phisical setup
+### How to install
+
+1. Wiring
+
+        [S21] pin1 (unused)
+        [S21] pin2 =================================>  D7 [esp8266mini]
+        [S21] pin3 =================================>  D6 [esp8266mini]
+        [S21] pin4 =====> IN + [mini560] + OUT =====>  5V [esp8266mini]
+        [S21] pin5 =====> IN - [mini560] - OUT =====> GND [esp8266mini]
+
+
+   With a voltage meter, check which end of S21 is pin 1.
+
+2. Clone this project
+
+3. Apply Remotedebug patches (see below)
+
+4. Check `platformio.ini` settings on uploading to your board.
+
+5. Compile the project and upload
+
+6. Upload filesystem files
+
+        pio run --target uploadfs
+
+7. On the first boot, the device creates an access point `WiFi-daikin`. Connect to the WiFi. Any ip address should lead you to a portal that asks for credentials to your actual wifi. Enter the credentials and boot the device.
+
+8. Find out the device ip address (e.g. http://192.168.12.345) and connect to it with a browser.
+
+9. Connect the device to you Daikin unit S21 port. Then, in the browser you should see and be able to modify the device state.
+
+### Home Assistant integration
+
+1. You need an MQTT broker. You can eg. use the Home Assistant add-on, or the `eclipse-mosquitto` docker image.
+
+2. Click `MQTT control` to enable MQTT. Prefix `testamentTopic`, `subTopic` and `pubTopic` with a device id, e.g. `livingroomDaikin/`. Change `broker` to the MQTT broker name or ip address, possibly the same as your Home Assistant ip.
+
+3. In Home Assistant, add MQTT integration: Settings > Integrations > Add integration > MQTT. Set broker address.
+
+4. In Home Assistant, edit `configuration.yaml`. Copy this file to the end of config: https://github.com/MassiPi/DaikinS21/blob/master/HA%20Mqtt.txt but replace:
+
+    - the name of the device, e.g. `Living room AC`
+    - if you have more than unit, use more specific names: `mydaikin` => `livingroomDaikin`
+
+### Physical setup
 Well, this also fits inside the units, seems good! <br/>
 <img src="https://github.com/MassiPi/DaikinS21/assets/2384381/c33e21e2-6fc4-4717-9fac-01a2bb0648b4" width="50%"></img>
 
