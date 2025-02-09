@@ -1,10 +1,10 @@
 #daikin AC over mqtt
-mqtt
+mqtt:
   climate:
-    - name: "Your AC"
+    - name: "My Daikin AC"
       icon: mdi:air-conditioner
-      availability_topic: "your/availability/topic"
-      action_topic: "your/data/topic"
+      availability_topic: "mydaikin/testamentTopic"
+      action_topic: "mydaikin/pubTopic"
       action_template: >-
         {% if value_json.power == false %}
             off
@@ -22,15 +22,15 @@ mqtt
             cooling
         {% elif (value_json.mode == 49 or value_json.mode == 48) and (value_json.temp_inside / 10) < (value_json.setpoint / 10) %}
             heating
-        {% endif %} 
-      power_command_topic: "your/command/topic"
+        {% endif %}
+      power_command_topic: "mydaikin/subTopic"
       power_command_template: >-
         {% if value == "ON" %}
             {"command":"acPower","power":true}{{'\0'}}
         {% elif value == "OFF" %}
             {"command":"acPower","power":false}{{'\0'}}
-        {% endif %}   
-      mode_state_topic: "your/data/topic"
+        {% endif %}
+      mode_state_topic: "mydaikin/pubTopic"
       modes: ["auto", "off", "dry", "cool", "heat", "fan_only"]
       mode_state_template: >-
         {% if value_json.power == false %}
@@ -46,7 +46,7 @@ mqtt
         {% elif value_json.mode == 54 %}
             fan_only
         {% endif %}
-      mode_command_topic: "your/command/topic"
+      mode_command_topic: "mydaikin/subTopic"
       mode_command_template: >-
         {% if value == "auto" %}
             {"command":"acHaMode","mode":49}{{'\0'}}
@@ -61,7 +61,7 @@ mqtt
         {% elif value == "fan_only" %}
             {"command":"acHaMode","mode":54}{{'\0'}}
         {% endif %}
-      fan_mode_state_topic: "your/data/topic"
+      fan_mode_state_topic: "mydaikin/pubTopic"
       fan_modes: ["Auto", "Night", "Speed 1", "Speed 2", "Speed 3", "Speed 4", "Speed 5"]
       fan_mode_state_template: >-
         {% if value_json.fan == 65 %}
@@ -79,7 +79,7 @@ mqtt
         {% elif value_json.fan == 55 %}
             Speed 5
         {% endif %}
-      fan_mode_command_topic: "your/command/topic"
+      fan_mode_command_topic: "mydaikin/subTopic"
       fan_mode_command_template: >-
         {% if value == "Auto" %}
             {"command":"acFan","fan":65}{{'\0'}}
@@ -96,18 +96,18 @@ mqtt
         {% elif value == "Speed 5" %}
             {"command":"acFan","fan":55}{{'\0'}}
         {% endif %}
-      current_temperature_topic: "your/data/topic"
+      current_temperature_topic: "mydaikin/pubTopic"
       current_temperature_template: "{{ value_json.temp_inside / 10 }}"
-      temperature_state_topic: "your/data/topic"
+      temperature_state_topic: "mydaikin/pubTopic"
       temperature_state_template: "{{ value_json.setpoint / 10 }}"
-      temperature_command_topic: "your/command/topic"
+      temperature_command_topic: "mydaikin/subTopic"
       temperature_command_template: >-
         {"command":"acTemp","temp":{{ value | int }}}{{'\0'}}
       max_temp: 32
       min_temp: 18
       precision: 0.5
       swing_modes: ["Full swing", "Only horizontal", "Only vertical", "No swing"]
-      swing_mode_state_topic: "your/data/topic"
+      swing_mode_state_topic: "mydaikin/pubTopic"
       swing_mode_state_template: >-
         {% if value_json.swing_v and value_json.swing_h %}
             Full swing
@@ -118,7 +118,7 @@ mqtt
         {% elif not value_json.swing_h and not value_json.swing_v %}
             No swing
         {% endif %}
-      swing_mode_command_topic: "your/command/topic"
+      swing_mode_command_topic: "mydaikin/subTopic"
       swing_mode_command_template: >-
         {% if value == "Full swing" %}
             {"command":"acSwing","swingV":true,"swingH":true}{{'\0'}}
@@ -129,28 +129,42 @@ mqtt
         {% elif value == "No swing" %}
             {"command":"acSwing","swingV":false,"swingH":false}{{'\0'}}
         {% endif %}
-      json_attributes_topic: "your/data/topic"
+      json_attributes_topic: "mydaikin/pubTopic"
       json_attributes_template: >
           { "Outside Temp": {{value_json.temp_outside / 10}},
             "Coil Temp": {{value_json.temp_coil / 10}},
             "Fan RPM": {{value_json.fan_rpm}}
           }
   sensor:
-    #sensor of Daikin compressor frequency
-    - name: "Daikin Compressor Frequency"
-      state_topic: "your/data/topic"
+    # sensor of Daikin compressor frequency
+    - name: "My Daikin: Compressor Frequency"
+      state_topic: "mydaikin/pubTopic"
       value_template: "{{ value_json.compressor_freq }}"
-      availability_topic: "your/availability/topic"
+      availability_topic: "mydaikin/testamentTopic"
       device_class: "Frequency"
       state_class: "measurement"
       unit_of_measurement: "Hz"
       suggested_display_precision: 0
 
-  #boolean sensor for Daikin compressor state
+    - name: "My Daikin: Outside Temperature"
+      state_topic: "mydaikin/pubTopic"
+      value_template: "{{ value_json.temp_outside / 10 }}"
+      unit_of_measurement: "°C"
+
+    - name: "My Daikin: Coil Temperature"
+      state_topic: "mydaikin/pubTopic"
+      value_template: "{{ value_json.temp_coil / 10 }}"
+      unit_of_measurement: "°C"
+
+    - name: "My Daikin: Fan RPM"
+      state_topic: "mydaikin/pubTopic"
+      value_template: "{{ value_json.fan_rpm }}"
+      unit_of_measurement: "RPM"
+  # boolean sensor for Daikin compressor state
   binary_sensor:
-    - name: "DaikinCompressor"
-      state_topic: "your/data/topic"
+    - name: "My Daikin: Compressor"
+      state_topic: "mydaikin/pubTopic"
       value_template: "{{ value_json.idle }}"
       payload_on: false
       payload_off: true
-      availability_topic: "your/availability/topic"
+      availability_topic: "mydaikin/testamentTopic"
