@@ -1365,19 +1365,6 @@ void loop() {
       //triggering send command
       cmdState = 1;
     }
-    //for HA integration
-    if ( wsMsg["command"].as<String>() == "acSwing" ){
-      //swing control command
-      debugD("Sending AC Swing Horizontal command: %i and vertical command: %i", wsMsg["swingH"].as<bool>(), wsMsg["swingV"].as<bool>());
-
-      acCommand = {'D', '5',
-        (uint8_t) ('0' + (wsMsg["swingH"].as<bool>() ? 2 : 0) + (wsMsg["swingV"].as<bool>() ? 1 : 0) + (wsMsg["swingH"].as<bool>() && wsMsg["swingV"].as<bool>() ? 4 : 0)),
-        (uint8_t) (wsMsg["swingV"].as<bool>() || wsMsg["swingH"].as<bool>() ? '?' : '0'), 
-        '0', '0'
-      };
-      //triggering send command
-      cmdState = 1;
-    }
         
     //clear the ws message - null terminate the first array element
     wsTxt[0] = '\0';
