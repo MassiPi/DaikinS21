@@ -106,28 +106,35 @@ mqtt:
       max_temp: 32
       min_temp: 18
       precision: 0.5
-      swing_modes: ["Full swing", "Only horizontal", "Only vertical", "No swing"]
+      swing_modes: ["On", "Off"]
       swing_mode_state_topic: "mydaikin/pubTopic"
       swing_mode_state_template: >-
-        {% if value_json.swing_v and value_json.swing_h %}
-            Full swing
-        {% elif value_json.swing_h and not value_json.swing_v %}
-            Only horizontal
-        {% elif value_json.swing_v and not value_json.swing_h %}
-            Only vertical
-        {% elif not value_json.swing_h and not value_json.swing_v %}
-            No swing
+        {% if value_json.swing_v %}
+            On
+        {% elif not value_json.swing_v %}
+            Off
         {% endif %}
       swing_mode_command_topic: "mydaikin/subTopic"
       swing_mode_command_template: >-
-        {% if value == "Full swing" %}
-            {"command":"acSwing","swingV":true,"swingH":true}{{'\0'}}
-        {% elif value == "Only horizontal" %}
-            {"command":"acSwing","swingV":false,"swingH":true}{{'\0'}}
-        {% elif value == "Only vertical" %}
-            {"command":"acSwing","swingV":true,"swingH":false}{{'\0'}}
-        {% elif value == "No swing" %}
-            {"command":"acSwing","swingV":false,"swingH":false}{{'\0'}}
+        {% if value == "On" %}
+            {"command":"acSwingV","swingV":true}{{'\0'}}
+        {% elif value == "Off" %}
+            {"command":"acSwingV","swingV":false}{{'\0'}}
+        {% endif %}
+      swing_horizontal_modes: ["On", "Off"]
+      swing_horizontal_mode_state_topic: "mydaikin/pubTopic"
+      swing_horizontal_mode_state_template: >-
+        {% if value_json.swing_h %}
+            On
+        {% elif not value_json.swing_h %}
+            Off
+        {% endif %}
+      swing_horizontal_mode_command_topic: "mydaikin/subTopic"
+      swing_horizontal_mode_command_template: >-
+        {% if value == "On" %}
+            {"command":"acSwingH","swingH":true}{{'\0'}}
+        {% elif value == "Off" %}
+            {"command":"acSwingH","swingH":false}{{'\0'}}
         {% endif %}
       json_attributes_topic: "mydaikin/pubTopic"
       json_attributes_template: >
