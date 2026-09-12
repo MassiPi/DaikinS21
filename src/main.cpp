@@ -858,13 +858,14 @@ void loop() {
             debugE("NAK from S21 for %s query", acQueries[acQuery].c_str());
             //ko for this query, so going to state 5 to wait for the next command
             state = 5;
-          }
-          if (serialByte != ACK) {
+          } else if (serialByte != ACK) {
             debugE("No ACK from S21 for %s query (received %i)", acQueries[acQuery].c_str(), serialByte);
             //ko for this query, so going to state 5 to wait for the next command
             state = 5;
+          } else {
+            //got the ACK, the answer frame follows
+            state = 3;
           }
-          state = 3;
         }
       }
     } //end state 2: checking ACK
