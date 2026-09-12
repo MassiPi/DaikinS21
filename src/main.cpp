@@ -898,6 +898,12 @@ void loop() {
             //frame ended
             frameReading = false;
             STXreceived = false;
+            if ( frameBytes.empty() ){
+              //STX immediately followed by ETX: no payload, so nothing to checksum
+              debugE("Empty frame received for query %s", acQueries[acQuery].c_str());
+              state = 5;
+              return;
+            }
             //checking checksum
             frameChecksum = frameBytes[frameBytes.size() - 1];
             frameBytes.pop_back();
