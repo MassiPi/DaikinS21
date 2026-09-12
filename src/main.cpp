@@ -1119,7 +1119,7 @@ void loop() {
       lastRead = millis();
     } //end cmdState 1: disabling update and preparing sending new command
     if ( cmdState == 2 ){ //cmdstate 2: waiting..
-      if ( serialTimeoutStart - millis() > serialTimeout ){
+      if ( millis() - serialTimeoutStart > serialTimeout ){
         //go to state 3
         cmdState = 3;
       }
